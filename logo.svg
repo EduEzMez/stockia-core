@@ -1,0 +1,19 @@
+<!-- =============================================
+     STOCKIA LOGO SVG — versión blanca (navbar)
+     ============================================= -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 44" role="img" aria-label="Stockia">
+  <!-- "St" -->
+  <text x="0" y="34" font-family="Inter,sans-serif" font-weight="700" font-size="36" fill="white" letter-spacing="-1">St</text>
+
+  <!-- "o" = caja 📦 -->
+  <rect x="42" y="10" width="22" height="22" rx="3" fill="none" stroke="white" stroke-width="3"/>
+  <!-- tapa de la caja (línea horizontal) -->
+  <line x1="42" y1="18" x2="64" y2="18" stroke="white" stroke-width="2"/>
+  <!-- cinta central izquierda -->
+  <line x1="49" y1="10" x2="49" y2="18" stroke="white" stroke-width="2"/>
+  <!-- cinta central derecha -->
+  <line x1="57" y1="10" x2="57" y2="18" stroke="white" stroke-width="2"/>
+
+  <!-- "ckia" -->
+  <text x="66" y="34" font-family="Inter,sans-serif" font-weight="700" font-size="36" fill="white" letter-spacing="-1">ckia</text>
+</svg>

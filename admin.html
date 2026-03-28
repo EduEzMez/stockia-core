@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stockia — Panel Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .tabs { display:flex; border-bottom:2px solid var(--border); margin-bottom:20px; overflow-x:auto; }
+    .tab-btn { padding:10px 18px; border:none; background:transparent; font-family:var(--font); font-size:0.95rem; font-weight:600; color:#6B7280; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; white-space:nowrap; transition:all .2s; }
+    .tab-btn.active { color:var(--primary); border-bottom-color:var(--secondary); }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+    .empresa-card { border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:12px; background:white; }
+    .empresa-card h3 { font-size:1rem; font-weight:700; color:var(--primary); margin-bottom:4px; }
+    .user-row { display:flex; gap:8px; align-items:center; padding:8px 0; border-bottom:1px solid #F3F4F6; flex-wrap:wrap; }
+    .user-row:last-child { border-bottom:none; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="dashboard.html" class="nav-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 44">
+        <text x="0" y="34" font-family="Inter,sans-serif" font-weight="700" font-size="36" fill="white" letter-spacing="-1">St</text>
+        <rect x="42" y="10" width="22" height="22" rx="3" fill="none" stroke="white" stroke-width="3"/>
+        <line x1="42" y1="18" x2="64" y2="18" stroke="white" stroke-width="2"/>
+        <line x1="49" y1="10" x2="49" y2="18" stroke="white" stroke-width="2"/>
+        <line x1="57" y1="10" x2="57" y2="18" stroke="white" stroke-width="2"/>
+        <text x="66" y="34" font-family="Inter,sans-serif" font-weight="700" font-size="36" fill="white" letter-spacing="-1">ckia</text>
+      </svg>
+    </a>
+    <div class="nav-desktop">
+      <a href="dashboard.html" data-nav="dashboard.html">🏠 Inicio</a>
+      <a href="productos.html" data-nav="productos.html">📦 Productos</a>
+      <a href="clientes.html" data-nav="clientes.html">👥 Clientes</a>
+      <a href="ventas.html" data-nav="ventas.html">🛒 Ventas</a>
+      <a href="admin.html" data-nav="admin.html">⚙️ Admin</a>
+    </div>
+    <div class="nav-right">
+      <div class="nav-user-info"><strong id="nav-user-name">—</strong><span id="nav-rol"></span></div>
+      <button class="btn btn-sm" onclick="logout()" style="background:rgba(239,68,68,0.2);color:#FCA5A5;border:1px solid rgba(239,68,68,0.3)">Salir</button>
+    </div>
+    <button class="hamburger" id="hamburger-btn"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<div class="nav-mobile-menu" id="nav-mobile-menu">
+  <a href="dashboard.html" data-nav="dashboard.html"><span class="nav-icon">🏠</span> Inicio</a>
+  <a href="productos.html" data-nav="productos.html"><span class="nav-icon">📦</span> Productos</a>
+  <a href="clientes.html" data-nav="clientes.html"><span class="nav-icon">👥</span> Clientes</a>
+  <a href="ventas.html" data-nav="ventas.html"><span class="nav-icon">🛒</span> Ventas</a>
+  <a href="admin.html" data-nav="admin.html"><span class="nav-icon">⚙️</span> Admin</a>
+  <div class="nav-user-mobile">
+    <div id="mobile-user-name" style="font-weight:600;color:white"></div>
+    <button class="btn btn-sm btn-logout" onclick="logout()">🚪 Cerrar sesión</button>
+  </div>
+</div>
+
+<main class="main-content">
+  <div class="page-header">
+    <h1>⚙️ Panel de administración</h1>
+    <p id="admin-subtitle">Gestión global de empresas, usuarios y datos</p>
+  </div>
+
+  <!-- Access denied message -->
+  <div class="alert alert-danger hidden" id="access-denied">
+    🔒 No tenés permisos para acceder a este panel. Solo administradores pueden ver esta página.
+  </div>
+
+  <div id="admin-content" class="hidden">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('tab-empresas')">🏢 Empresas</button>
+      <button class="tab-btn" onclick="switchTab('tab-usuarios')">👥 Usuarios</button>
+      <button class="tab-btn" onclick="switchTab('tab-backup')">💾 Backup</button>
+    </div>
+
+    <!-- TAB EMPRESAS -->
+    <div class="tab-content active" id="tab-empresas">
+      <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+        <h2 style="font-size:1.1rem;font-weight:700;color:var(--primary)">🏢 Empresas registradas</h2>
+        <button class="btn btn-success" onclick="openModal('modal-empresa')">➕ Nueva empresa</button>
+      </div>
+      <div id="empresas-list">Cargando...</div>
+    </div>
+
+    <!-- TAB USUARIOS -->
+    <div class="tab-content" id="tab-usuarios">
+      <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+        <h2 style="font-size:1.1rem;font-weight:700;color:var(--primary)">👥 Usuarios del sistema</h2>
+        <button class="btn btn-success" onclick="openModal('modal-usuario')">➕ Nuevo usuario</button>
+      </div>
+      <div class="alert alert-info mb-3" style="font-size:0.88rem">
+        ⚠️ Para crear usuarios con email y contraseña, primero deben registrarse en el sistema. Luego podés asignarles empresa y rol desde aquí.
+      </div>
+      <div id="usuarios-list">Cargando...</div>
+    </div>
+
+    <!-- TAB BACKUP -->
+    <div class="tab-content" id="tab-backup">
+      <div class="card mb-4">
+        <div class="card-title">📤 Exportar datos por empresa</div>
+        <div class="form-group">
+          <label class="form-label">Seleccioná empresa</label>
+          <select class="form-control" id="export-empresa-select">
+            <option value="">Seleccioná...</option>
+          </select>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <button class="btn btn-primary" onclick="exportarEmpresa()">⬇️ Exportar JSON</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📥 Importar datos por empresa</div>
+        <div class="form-group">
+          <label class="form-label">Empresa destino</label>
+          <select class="form-control" id="import-empresa-select">
+            <option value="">Seleccioná...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Archivo JSON</label>
+          <input type="file" class="form-control" id="import-file" accept=".json">
+          <div class="form-hint">⚠️ Esto AGREGA datos. No borra los existentes.</div>
+        </div>
+        <button class="btn btn-warning" onclick="importarEmpresa()" style="background:var(--warning);color:white">⬆️ Importar JSON</button>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer>© <span id="footer-year"></span> Stockia. Todos los derechos reservados.</footer>
+<div id="toast-container"></div>
+
+<!-- MODAL Empresa -->
+<div class="modal-overlay" id="modal-empresa">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-empresa-title">Nueva empresa</h3>
+      <button class="modal-close" onclick="closeModal('modal-empresa')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="emp-id">
+      <div class="form-group">
+        <label class="form-label">Nombre de la empresa <span class="required">*</span></label>
+        <input type="text" class="form-control" id="emp-nombre" placeholder="Ej: Ferretería Don Pedro">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email de contacto</label>
+        <input type="email" class="form-control" id="emp-email" placeholder="contacto@empresa.com">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-empresa')">Cancelar</button>
+      <button class="btn btn-success" onclick="saveEmpresa()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL Usuario: asignar empresa/rol -->
+<div class="modal-overlay" id="modal-usuario">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-usuario-title">Editar usuario</h3>
+      <button class="modal-close" onclick="closeModal('modal-usuario')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="usr-id">
+      <div class="form-group">
+        <label class="form-label">Email del usuario</label>
+        <input type="text" class="form-control" id="usr-email" readonly style="background:#F9FAFB">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nombre</label>
+        <input type="text" class="form-control" id="usr-nombre" placeholder="Nombre completo">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Empresa</label>
+        <select class="form-control" id="usr-empresa">
+          <option value="">Sin empresa</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Rol</label>
+        <select class="form-control" id="usr-rol">
+          <option value="operador">Operador</option>
+          <option value="admin_empresa">Admin de empresa</option>
+          <option value="admin_global">Admin Global</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Estado</label>
+        <select class="form-control" id="usr-activo">
+          <option value="true">Activo</option>
+          <option value="false">Inactivo</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-usuario')">Cancelar</button>
+      <button class="btn btn-success" onclick="saveUsuario()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="utils.js"></script>
+<script>
+  const sb = initSupabase();
+  let currentUser = null;
+  let allEmpresas = [];
+  let allUsuarios = [];
+
+  async function init() {
+    const session = await checkAuth();
+    if (!session) return;
+    currentUser = await getCurrentUser();
+    if (!currentUser) { logout(); return; }
+
+    const rol = currentUser.perfil?.rol;
+    document.getElementById('nav-user-name').textContent = currentUser.perfil?.nombre || currentUser.email;
+    document.getElementById('nav-rol').textContent = rol === 'admin_global' ? ' · Admin Global' : '';
+    document.getElementById('mobile-user-name').textContent = currentUser.perfil?.nombre || currentUser.email;
+
+    setActiveNavLink();
+    initHamburger();
+    setFooterYear();
+
+    // Check access
+    if (!['admin_global', 'admin_empresa'].includes(rol)) {
+      document.getElementById('access-denied').classList.remove('hidden');
+      return;
+    }
+
+    document.getElementById('admin-content').classList.remove('hidden');
+
+    await loadEmpresas();
+    await loadUsuarios();
+  }
+
+  function switchTab(id) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    const idx = ['tab-empresas','tab-usuarios','tab-backup'].indexOf(id);
+    document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
+  }
+
+  // ==============================================================
+  // EMPRESAS
+  // ==============================================================
+  async function loadEmpresas() {
+    const { data } = await sb.from('empresas').select('*').order('nombre');
+    allEmpresas = data || [];
+
+    const listEl = document.getElementById('empresas-list');
+    const exportSel = document.getElementById('export-empresa-select');
+    const importSel = document.getElementById('import-empresa-select');
+    const usrEmpSel = document.getElementById('usr-empresa');
+
+    const opts = allEmpresas.map(e => `<option value="${e.id}">${e.nombre}</option>`).join('');
+    exportSel.innerHTML = '<option value="">Seleccioná...</option>' + opts;
+    importSel.innerHTML = '<option value="">Seleccioná...</option>' + opts;
+    usrEmpSel.innerHTML = '<option value="">Sin empresa</option>' + opts;
+
+    if (!allEmpresas.length) {
+      listEl.innerHTML = '<p style="color:#9CA3AF">No hay empresas registradas</p>';
+      return;
+    }
+
+    listEl.innerHTML = allEmpresas.map(e => `
+      <div class="empresa-card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">
+          <div>
+            <h3>🏢 ${e.nombre}</h3>
+            <div style="font-size:0.82rem;color:#6B7280">${e.email_contacto || 'Sin email'} · ${e.activa ? '✅ Activa' : '❌ Inactiva'}</div>
+          </div>
+          <div class="row-actions">
+            <button class="btn btn-sm btn-primary" onclick="editEmpresa('${e.id}')">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="toggleEmpresa('${e.id}', ${!e.activa})">${e.activa ? '🚫' : '✅'}</button>
+          </div>
+        </div>
+      </div>`
+    ).join('');
+  }
+
+  function editEmpresa(id) {
+    const e = allEmpresas.find(x => x.id === id);
+    if (!e) return;
+    document.getElementById('modal-empresa-title').textContent = 'Editar empresa';
+    document.getElementById('emp-id').value = e.id;
+    document.getElementById('emp-nombre').value = e.nombre;
+    document.getElementById('emp-email').value = e.email_contacto || '';
+    openModal('modal-empresa');
+  }
+
+  async function saveEmpresa() {
+    const id = document.getElementById('emp-id').value;
+    const nombre = document.getElementById('emp-nombre').value.trim();
+    const email = document.getElementById('emp-email').value.trim();
+    if (!nombre) { showToast('El nombre es requerido', 'error'); return; }
+
+    try {
+      if (id) {
+        await sb.from('empresas').update({ nombre, email_contacto: email }).eq('id', id);
+        showToast('Empresa actualizada ✅', 'success');
+      } else {
+        await sb.from('empresas').insert({ nombre, email_contacto: email });
+        showToast('Empresa creada ✅', 'success');
+      }
+      document.getElementById('emp-id').value = '';
+      document.getElementById('emp-nombre').value = '';
+      document.getElementById('emp-email').value = '';
+      document.getElementById('modal-empresa-title').textContent = 'Nueva empresa';
+      closeModal('modal-empresa');
+      await loadEmpresas();
+    } catch(e) {
+      showToast('Error: ' + e.message, 'error');
+    }
+  }
+
+  async function toggleEmpresa(id, activa) {
+    await sb.from('empresas').update({ activa }).eq('id', id);
+    showToast(activa ? 'Empresa activada' : 'Empresa desactivada', 'success');
+    await loadEmpresas();
+  }
+
+  // ==============================================================
+  // USUARIOS
+  // ==============================================================
+  async function loadUsuarios() {
+    const { data } = await sb.from('perfiles')
+      .select('*, empresas(nombre)')
+      .order('created_at', { ascending: false });
+    allUsuarios = data || [];
+
+    const listEl = document.getElementById('usuarios-list');
+    if (!allUsuarios.length) {
+      listEl.innerHTML = '<p style="color:#9CA3AF">No hay usuarios registrados</p>';
+      return;
+    }
+
+    listEl.innerHTML = allUsuarios.map(u => {
+      const rolBadge = u.rol === 'admin_global' ? 'badge-red' : u.rol === 'admin_empresa' ? 'badge-blue' : 'badge-gray';
+      return `
+        <div class="user-row">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:600;font-size:0.95rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${u.nombre || u.email}</div>
+            <div style="font-size:0.78rem;color:#6B7280">${u.email} · ${u.empresas?.nombre || 'Sin empresa'}</div>
+          </div>
+          <span class="badge ${rolBadge}">${u.rol}</span>
+          <span class="badge ${u.activo ? 'badge-green' : 'badge-red'}">${u.activo ? 'Activo' : 'Inactivo'}</span>
+          <button class="btn btn-sm btn-primary" onclick="editUsuario('${u.id}')">✏️</button>
+        </div>`;
+    }).join('');
+  }
+
+  function editUsuario(id) {
+    const u = allUsuarios.find(x => x.id === id);
+    if (!u) return;
+    document.getElementById('modal-usuario-title').textContent = 'Editar usuario';
+    document.getElementById('usr-id').value = u.id;
+    document.getElementById('usr-email').value = u.email;
+    document.getElementById('usr-nombre').value = u.nombre || '';
+    document.getElementById('usr-empresa').value = u.empresa_id || '';
+    document.getElementById('usr-rol').value = u.rol;
+    document.getElementById('usr-activo').value = String(u.activo);
+    openModal('modal-usuario');
+  }
+
+  async function saveUsuario() {
+    const id = document.getElementById('usr-id').value;
+    const nombre = document.getElementById('usr-nombre').value.trim();
+    const empresaId = document.getElementById('usr-empresa').value || null;
+    const rol = document.getElementById('usr-rol').value;
+    const activo = document.getElementById('usr-activo').value === 'true';
+
+    if (!id) { showToast('Seleccioná un usuario para editar', 'error'); return; }
+
+    try {
+      await sb.from('perfiles').update({ nombre, empresa_id: empresaId, rol, activo }).eq('id', id);
+      showToast('Usuario actualizado ✅', 'success');
+      closeModal('modal-usuario');
+      await loadUsuarios();
+    } catch(e) {
+      showToast('Error: ' + e.message, 'error');
+    }
+  }
+
+  // ==============================================================
+  // BACKUP: EXPORTAR
+  // ==============================================================
+  async function exportarEmpresa() {
+    const empresaId = document.getElementById('export-empresa-select').value;
+    if (!empresaId) { showToast('Seleccioná una empresa', 'error'); return; }
+
+    showLoading('Exportando datos...');
+
+    try {
+      const empresa = allEmpresas.find(e => e.id === empresaId);
+      const [productos, clientes, ventas, ventaItems, pagos] = await Promise.all([
+        sb.from('productos').select('*').eq('empresa_id', empresaId),
+        sb.from('clientes').select('*').eq('empresa_id', empresaId),
+        sb.from('ventas').select('*').eq('empresa_id', empresaId),
+        sb.from('venta_items').select('*').eq('empresa_id', empresaId),
+        sb.from('pagos').select('*').eq('empresa_id', empresaId),
+      ]);
+
+      const backup = {
+        exportado: new Date().toISOString(),
+        empresa: empresa?.nombre,
+        empresa_id: empresaId,
+        datos: {
+          productos: productos.data,
+          clientes: clientes.data,
+          ventas: ventas.data,
+          venta_items: ventaItems.data,
+          pagos: pagos.data,
+        }
+      };
+
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `stockia-backup-${empresa?.nombre?.replace(/\s+/g,'-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+
+      hideLoading();
+      showToast('Backup exportado ✅', 'success');
+    } catch(e) {
+      hideLoading();
+      showToast('Error al exportar: ' + e.message, 'error');
+    }
+  }
+
+  // ==============================================================
+  // BACKUP: IMPORTAR
+  // ==============================================================
+  async function importarEmpresa() {
+    const empresaId = document.getElementById('import-empresa-select').value;
+    const file = document.getElementById('import-file').files[0];
+
+    if (!empresaId) { showToast('Seleccioná una empresa destino', 'error'); return; }
+    if (!file) { showToast('Seleccioná un archivo JSON', 'error'); return; }
+    if (!confirmDialog('⚠️ ¿Confirmar importación? Se AGREGARÁN los datos al sistema. No se borran los existentes.')) return;
+
+    showLoading('Importando datos...');
+
+    try {
+      const text = await file.text();
+      const backup = JSON.parse(text);
+      const datos = backup.datos;
+
+      // Mapear IDs viejos -> nuevos para mantener relaciones
+      const prodMap = {};
+      const cliMap = {};
+      const ventaMap = {};
+      const itemMap = {};
+
+      // Importar productos
+      if (datos.productos?.length) {
+        for (const p of datos.productos) {
+          const { id: oldId, ...rest } = p;
+          const { data } = await sb.from('productos').insert({ ...rest, empresa_id: empresaId }).select('id').single();
+          if (data) prodMap[oldId] = data.id;
+        }
+      }
+
+      // Importar clientes
+      if (datos.clientes?.length) {
+        for (const c of datos.clientes) {
+          const { id: oldId, ...rest } = c;
+          const { data } = await sb.from('clientes').insert({ ...rest, empresa_id: empresaId }).select('id').single();
+          if (data) cliMap[oldId] = data.id;
+        }
+      }
+
+      // Importar ventas
+      if (datos.ventas?.length) {
+        for (const v of datos.ventas) {
+          const { id: oldId, ...rest } = v;
+          const newClienteId = cliMap[rest.cliente_id] || rest.cliente_id;
+          const { data } = await sb.from('ventas').insert({ ...rest, empresa_id: empresaId, cliente_id: newClienteId }).select('id').single();
+          if (data) ventaMap[oldId] = data.id;
+        }
+      }
+
+      // Importar venta_items
+      if (datos.venta_items?.length) {
+        for (const vi of datos.venta_items) {
+          const { id: oldId, ...rest } = vi;
+          const newVentaId = ventaMap[rest.venta_id] || rest.venta_id;
+          const newProdId = prodMap[rest.producto_id] || rest.producto_id;
+          const { data } = await sb.from('venta_items').insert({ ...rest, empresa_id: empresaId, venta_id: newVentaId, producto_id: newProdId }).select('id').single();
+          if (data) itemMap[oldId] = data.id;
+        }
+      }
+
+      // Importar pagos
+      if (datos.pagos?.length) {
+        for (const pg of datos.pagos) {
+          const { id: oldId, ...rest } = pg;
+          const newItemId = itemMap[rest.venta_item_id] || rest.venta_item_id;
+          await sb.from('pagos').insert({ ...rest, empresa_id: empresaId, venta_item_id: newItemId });
+        }
+      }
+
+      hideLoading();
+      showToast('¡Importación completada! ✅', 'success');
+    } catch(e) {
+      hideLoading();
+      showToast('Error al importar: ' + e.message, 'error');
+      console.error(e);
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stockia — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="dashboard.html" class="nav-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 44">
+        <text x="0" y="34" font-family="Inter,sans-serif" font-weight="700" font-size="36" fill="white" letter-spacing="-1">St</text>
+        <rect x="42" y="10" width="22" height="22" rx="3" fill="none" stroke="white" stroke-width="3"/>
+        <line x1="42" y1="18" x2="64" y2="18" stroke="white" stroke-width="2"/>
+        <line x1="49" y1="10" x2="49" y2="18" stroke="white" stroke-width="2"/>
+        <line x1="57" y1="10" x2="57" y2="18" stroke="white" stroke-width="2"/>
+        <text x="66" y="34" font-family="Inter,sans-serif" font-weight="700" font-size="36" fill="white" letter-spacing="-1">ckia</text>
+      </svg>
+    </a>
+
+    <!-- Desktop nav -->
+    <div class="nav-desktop">
+      <a href="dashboard.html" data-nav="dashboard.html">🏠 Inicio</a>
+      <a href="productos.html" data-nav="productos.html">📦 Productos</a>
+      <a href="clientes.html" data-nav="clientes.html">👥 Clientes</a>
+      <a href="ventas.html" data-nav="ventas.html">🛒 Ventas</a>
+      <a href="admin.html" data-nav="admin.html" id="admin-nav-link" class="hidden">⚙️ Admin</a>
+    </div>
+
+    <div class="nav-right">
+      <div class="nav-user-info">
+        <strong id="nav-user-name">—</strong>
+        <span id="nav-empresa-name"></span>
+      </div>
+      <button class="btn btn-sm" onclick="logout()" style="background:rgba(239,68,68,0.2);color:#FCA5A5;border:1px solid rgba(239,68,68,0.3)">
+        Salir
+      </button>
+    </div>
+
+    <!-- Hamburger -->
+    <button class="hamburger" id="hamburger-btn" aria-label="Menú">
+      <span></span><span></span><span></span>
+    </button>
+  </div>
+</nav>
+
+<!-- Mobile Menu -->
+<div class="nav-mobile-menu" id="nav-mobile-menu">
+  <a href="dashboard.html" data-nav="dashboard.html"><span class="nav-icon">🏠</span> Inicio</a>
+  <a href="productos.html" data-nav="productos.html"><span class="nav-icon">📦</span> Productos</a>
+  <a href="clientes.html" data-nav="clientes.html"><span class="nav-icon">👥</span> Clientes</a>
+  <a href="ventas.html" data-nav="ventas.html"><span class="nav-icon">🛒</span> Ventas</a>
+  <a href="admin.html" data-nav="admin.html" id="admin-nav-mobile" class="hidden"><span class="nav-icon">⚙️</span> Admin</a>
+  <div class="nav-user-mobile">
+    <div id="mobile-user-name" style="font-weight:600;color:white"></div>
+    <div id="mobile-empresa-name" style="margin-top:2px"></div>
+    <button class="btn btn-sm btn-logout" onclick="logout()">🚪 Cerrar sesión</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<main class="main-content">
+  <div class="page-header">
+    <h1>📊 Dashboard</h1>
+    <p id="greeting-text">Bienvenido/a al panel de control</p>
+  </div>
+
+  <!-- Stats Grid -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon">📦</div>
+      <div class="stat-value" id="stat-productos">—</div>
+      <div class="stat-label">Productos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">📋</div>
+      <div class="stat-value" id="stat-stock">—</div>
+      <div class="stat-label">Stock total</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🛒</div>
+      <div class="stat-value" id="stat-ventas">—</div>
+      <div class="stat-label">Ventas activas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">💰</div>
+      <div class="stat-value" id="stat-deuda" style="font-size:1rem">—</div>
+      <div class="stat-label">Deuda total</div>
+    </div>
+  </div>
+
+  <!-- Quick search rows -->
+  <div style="display:grid;grid-template-columns:1fr;gap:16px">
+
+    <!-- Últimos productos con bajo stock -->
+    <div class="card">
+      <div class="card-title">⚠️ Bajo stock (menos de 5 unidades)</div>
+      <div id="low-stock-list">
+        <p style="color:#9CA3AF;font-size:0.9rem">Cargando...</p>
+      </div>
+    </div>
+
+    <!-- Pagos vencidos -->
+    <div class="card">
+      <div class="card-title">🔴 Pagos vencidos</div>
+      <div id="pagos-vencidos-list">
+        <p style="color:#9CA3AF;font-size:0.9rem">Cargando...</p>
+      </div>
+    </div>
+
+    <!-- Accesos rápidos -->
+    <div class="card">
+      <div class="card-title">⚡ Accesos rápidos</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <a href="productos.html" class="btn btn-outline btn-lg" style="text-decoration:none">📦 Productos</a>
+        <a href="clientes.html" class="btn btn-outline btn-lg" style="text-decoration:none">👥 Clientes</a>
+        <a href="ventas.html" class="btn btn-success btn-lg" style="text-decoration:none">🛒 Nueva venta</a>
+        <a href="ventas.html" class="btn btn-primary btn-lg" style="text-decoration:none">💳 Registrar pago</a>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- FOOTER -->
+<footer>© <span id="footer-year"></span> Stockia. Todos los derechos reservados.</footer>
+
+<div id="toast-container"></div>
+
+<script src="utils.js"></script>
+<script>
+  const sb = initSupabase();
+  let currentUser = null;
+
+  async function init() {
+    const session = await checkAuth();
+    if (!session) return;
+
+    currentUser = await getCurrentUser();
+    if (!currentUser) { logout(); return; }
+
+    const perfil = currentUser.perfil;
+    const nombre = perfil?.nombre || currentUser.email;
+    const empresa = perfil?.empresas?.nombre || '';
+
+    // Nav user info
+    document.getElementById('nav-user-name').textContent = nombre;
+    document.getElementById('nav-empresa-name').textContent = empresa;
+    document.getElementById('mobile-user-name').textContent = nombre;
+    document.getElementById('mobile-empresa-name').textContent = empresa;
+
+    // Greeting
+    const hora = new Date().getHours();
+    const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches';
+    document.getElementById('greeting-text').textContent = `${saludo}, ${nombre}`;
+
+    // Show admin links
+    if (perfil?.rol === 'admin_global' || perfil?.rol === 'admin_empresa') {
+      document.getElementById('admin-nav-link')?.classList.remove('hidden');
+      document.getElementById('admin-nav-mobile')?.classList.remove('hidden');
+    }
+
+    setActiveNavLink();
+    initHamburger();
+    setFooterYear();
+    await loadStats();
+    await loadLowStock();
+    await loadPagosVencidos();
+  }
+
+  async function loadStats() {
+    const perfil = currentUser.perfil;
+    const empresaId = perfil?.empresa_id;
+
+    try {
+      // Productos
+      let qProd = sb.from('productos').select('id, stock', { count: 'exact' }).eq('activo', true);
+      if (empresaId) qProd = qProd.eq('empresa_id', empresaId);
+      const { data: prods, count: totalProd } = await qProd;
+      document.getElementById('stat-productos').textContent = totalProd || 0;
+
+      // Stock total
+      const stockTotal = (prods || []).reduce((s, p) => s + (p.stock || 0), 0);
+      document.getElementById('stat-stock').textContent = stockTotal;
+
+      // Ventas activas
+      let qVentas = sb.from('ventas').select('id', { count: 'exact' }).eq('estado', 'activa');
+      if (empresaId) qVentas = qVentas.eq('empresa_id', empresaId);
+      const { count: totalVentas } = await qVentas;
+      document.getElementById('stat-ventas').textContent = totalVentas || 0;
+
+      // Deuda total
+      let qDeuda = sb.from('venta_items').select('deuda_restante');
+      if (empresaId) qDeuda = qDeuda.eq('empresa_id', empresaId);
+      const { data: items } = await qDeuda;
+      const deudaTotal = (items || []).reduce((s, i) => s + (parseFloat(i.deuda_restante) || 0), 0);
+      document.getElementById('stat-deuda').textContent = formatMoney(deudaTotal);
+
+    } catch(e) {
+      console.error('Error stats:', e);
+    }
+  }
+
+  async function loadLowStock() {
+    try {
+      let q = sb.from('productos').select('nombre, stock').eq('activo', true).lt('stock', 5).order('stock', { ascending: true }).limit(5);
+      if (currentUser.perfil?.empresa_id) q = q.eq('empresa_id', currentUser.perfil.empresa_id);
+      const { data } = await q;
+      const container = document.getElementById('low-stock-list');
+      if (!data?.length) {
+        container.innerHTML = '<p style="color:#10B981;font-size:0.9rem">✅ Todos los productos tienen stock suficiente</p>';
+        return;
+      }
+      container.innerHTML = data.map(p => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F3F4F6">
+          <span style="font-size:0.9rem">${p.nombre}</span>
+          <span class="badge ${p.stock === 0 ? 'badge-red' : 'badge-yellow'}">${p.stock} unidades</span>
+        </div>
+      `).join('');
+    } catch(e) {}
+  }
+
+  async function loadPagosVencidos() {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      let q = sb.from('pagos')
+        .select('*, venta_items(productos(nombre)), venta_items(ventas(clientes(nombre)))')
+        .eq('estado', 'pendiente')
+        .lt('fecha_vencimiento', today)
+        .order('fecha_vencimiento', { ascending: true })
+        .limit(5);
+      if (currentUser.perfil?.empresa_id) q = q.eq('empresa_id', currentUser.perfil.empresa_id);
+      const { data } = await q;
+      const container = document.getElementById('pagos-vencidos-list');
+      if (!data?.length) {
+        container.innerHTML = '<p style="color:#10B981;font-size:0.9rem">✅ No hay pagos vencidos</p>';
+        return;
+      }
+      container.innerHTML = data.map(p => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #F3F4F6;gap:8px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:0.9rem;font-weight:500">${p.venta_items?.ventas?.clientes?.nombre || '—'}</div>
+            <div style="font-size:0.78rem;color:#6B7280">${p.venta_items?.productos?.nombre || '—'} · Vence ${formatDate(p.fecha_vencimiento)}</div>
+          </div>
+          <span class="badge badge-red">${formatMoney(p.monto_original)}</span>
+        </div>
+      `).join('');
+    } catch(e) {}
+  }
+
+  init();
+</script>
+</body>
+</html>

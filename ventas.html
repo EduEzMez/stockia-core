@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stockia — Ventas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .ficha-item {
+      background: #F9FAFB;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 12px;
+      position: relative;
+    }
+    .ficha-item .remove-btn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--danger);
+      font-size: 1.2rem;
+      padding: 4px;
+    }
+    .cuota-preview {
+      background: #DBEAFE;
+      border: 1px solid #BFDBFE;
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-size: 0.88rem;
+      color: #1E40AF;
+      margin-top: 10px;
+    }
+
+    .tabs {
+      display: flex;
+      border-bottom: 2px solid var(--border);
+      margin-bottom: 20px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      padding: 10px 18px;
+      border: none;
+      background: transparent;
+      font-family: var(--font);
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #6B7280;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--secondary);
+    }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .pago-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      padding: 8px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+    .pago-row.vencida { background: #FEF2F2; border-color: #FECACA; }
+    .pago-row.pagada { background: #F0FDF4; border-color: #BBF7D0; opacity: 0.7; }
+  </style>
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="dashboard.html" class="nav-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 44">
+        <text x="0" y="34" font-family="Inter,sans-serif" font-weight="700" font-size="36" fill="white" letter-spacing="-1">St</text>
+        <rect x="42" y="10" width="22" height="22" rx="3" fill="none" stroke="white" stroke-width="3"/>
+        <line x1="42" y1="18" x2="64" y2="18" stroke="white" stroke-width="2"/>
+        <line x1="49" y1="10" x2="49" y2="18" stroke="white" stroke-width="2"/>
+        <line x1="57" y1="10" x2="57" y2="18" stroke="white" stroke-width="2"/>
+        <text x="66" y="34" font-family="Inter,sans-serif" font-weight="700" font-size="36" fill="white" letter-spacing="-1">ckia</text>
+      </svg>
+    </a>
+    <div class="nav-desktop">
+      <a href="dashboard.html" data-nav="dashboard.html">🏠 Inicio</a>
+      <a href="productos.html" data-nav="productos.html">📦 Productos</a>
+      <a href="clientes.html" data-nav="clientes.html">👥 Clientes</a>
+      <a href="ventas.html" data-nav="ventas.html">🛒 Ventas</a>
+      <a href="admin.html" data-nav="admin.html" id="admin-nav-link" class="hidden">⚙️ Admin</a>
+    </div>
+    <div class="nav-right">
+      <div class="nav-user-info"><strong id="nav-user-name">—</strong></div>
+      <button class="btn btn-sm" onclick="logout()" style="background:rgba(239,68,68,0.2);color:#FCA5A5;border:1px solid rgba(239,68,68,0.3)">Salir</button>
+    </div>
+    <button class="hamburger" id="hamburger-btn"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<div class="nav-mobile-menu" id="nav-mobile-menu">
+  <a href="dashboard.html" data-nav="dashboard.html"><span class="nav-icon">🏠</span> Inicio</a>
+  <a href="productos.html" data-nav="productos.html"><span class="nav-icon">📦</span> Productos</a>
+  <a href="clientes.html" data-nav="clientes.html"><span class="nav-icon">👥</span> Clientes</a>
+  <a href="ventas.html" data-nav="ventas.html"><span class="nav-icon">🛒</span> Ventas</a>
+  <a href="admin.html" data-nav="admin.html" id="admin-nav-mobile" class="hidden"><span class="nav-icon">⚙️</span> Admin</a>
+  <div class="nav-user-mobile">
+    <div id="mobile-user-name" style="font-weight:600;color:white"></div>
+    <button class="btn btn-sm btn-logout" onclick="logout()">🚪 Cerrar sesión</button>
+  </div>
+</div>
+
+<main class="main-content">
+  <div class="page-header">
+    <h1>🛒 Ventas</h1>
+    <p>Registrá ventas y gestioná cuotas y pagos</p>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('tab-lista')">📋 Ventas activas</button>
+    <button class="tab-btn" onclick="switchTab('tab-nueva')">➕ Nueva venta</button>
+    <button class="tab-btn" onclick="switchTab('tab-pagos')">💳 Registrar pagos</button>
+  </div>
+
+  <!-- TAB: Lista de ventas -->
+  <div class="tab-content active" id="tab-lista">
+    <div class="search-bar">
+      <div class="search-input-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" class="form-control" id="search-ventas" placeholder="Buscar por cliente...">
+      </div>
+      <select class="form-control" id="filter-estado-venta" style="max-width:160px">
+        <option value="activa">Activas</option>
+        <option value="">Todas</option>
+        <option value="completada">Completadas</option>
+      </select>
+    </div>
+    <div id="ventas-list">
+      <p style="color:#9CA3AF">Cargando...</p>
+    </div>
+  </div>
+
+  <!-- TAB: Nueva Venta -->
+  <div class="tab-content" id="tab-nueva">
+    <div class="card">
+      <div class="card-title">📋 Datos de la venta</div>
+
+      <div class="form-grid form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Cliente <span class="required">*</span></label>
+          <select class="form-control" id="venta-cliente">
+            <option value="">Seleccioná un cliente...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Vendedor</label>
+          <input type="text" class="form-control" id="venta-vendedor" placeholder="Nombre del vendedor">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Fecha de venta</label>
+        <input type="date" class="form-control" id="venta-fecha">
+      </div>
+
+      <hr class="divider">
+      <div class="section-divider">Productos de la venta</div>
+
+      <div id="fichas-container">
+        <!-- Fichas dinámicas -->
+      </div>
+
+      <button class="btn btn-outline mt-2" onclick="addFicha()">➕ Agregar producto</button>
+
+      <hr class="divider">
+      <div id="venta-resumen" style="display:none" class="alert alert-info">
+        <strong>Resumen:</strong> <span id="resumen-texto"></span>
+      </div>
+
+      <div class="mt-4 flex gap-2 flex-wrap">
+        <button class="btn btn-success btn-lg" onclick="confirmarVenta()">✅ Confirmar venta</button>
+        <button class="btn btn-outline" onclick="resetNuevaVenta()">🗑️ Limpiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Registrar Pagos -->
+  <div class="tab-content" id="tab-pagos">
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">🔍 Buscar cuotas</div>
+      <div class="search-bar">
+        <div class="search-input-wrap">
+          <span class="search-icon">👤</span>
+          <select class="form-control" id="pago-cliente-select" onchange="loadCuotasByCliente()">
+            <option value="">Seleccioná un cliente...</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div id="cuotas-list">
+      <p style="color:#9CA3AF;text-align:center;padding:20px">Seleccioná un cliente para ver sus cuotas</p>
+    </div>
+  </div>
+
+</main>
+
+<footer>© <span id="footer-year"></span> Stockia. Todos los derechos reservados.</footer>
+<div id="toast-container"></div>
+
+<!-- MODAL: Ver detalle de venta -->
+<div class="modal-overlay" id="modal-venta-detalle">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <h3 id="detalle-titulo">Detalle de venta</h3>
+      <button class="modal-close" onclick="closeModal('modal-venta-detalle')">✕</button>
+    </div>
+    <div class="modal-body" id="detalle-content">Cargando...</div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-venta-detalle')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Registrar pago individual -->
+<div class="modal-overlay" id="modal-pagar">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>💳 Registrar pago</h3>
+      <button class="modal-close" onclick="closeModal('modal-pagar')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pago-cuota-id">
+      <input type="hidden" id="pago-item-id">
+      <div id="pago-info" style="background:#F9FAFB;border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:16px;font-size:0.9rem"></div>
+
+      <div class="form-group">
+        <label class="form-label">Fecha de pago</label>
+        <input type="date" class="form-control" id="pago-fecha">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Monto a pagar</label>
+        <input type="number" class="form-control" id="pago-monto" step="0.01" min="0" readonly style="background:#F9FAFB">
+        <div class="form-hint" id="pago-calculo-hint"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-pagar')">Cancelar</button>
+      <button class="btn btn-success" onclick="confirmarPago()">✅ Confirmar pago</button>
+    </div>
+  </div>
+</div>
+
+<script src="utils.js"></script>
+<script>
+  const sb = initSupabase();
+  let currentUser = null;
+  let allClientes = [];
+  let allProductos = [];
+  let fichaCount = 0;
+
+  async function init() {
+    const session = await checkAuth();
+    if (!session) return;
+    currentUser = await getCurrentUser();
+    if (!currentUser) { logout(); return; }
+
+    document.getElementById('nav-user-name').textContent = currentUser.perfil?.nombre || currentUser.email;
+    document.getElementById('mobile-user-name').textContent = currentUser.perfil?.nombre || currentUser.email;
+
+    if (['admin_global','admin_empresa'].includes(currentUser.perfil?.rol)) {
+      document.getElementById('admin-nav-link')?.classList.remove('hidden');
+      document.getElementById('admin-nav-mobile')?.classList.remove('hidden');
+    }
+
+    setActiveNavLink();
+    initHamburger();
+    setFooterYear();
+
+    // Set hoy
+    document.getElementById('venta-fecha').value = new Date().toISOString().split('T')[0];
+
+    await Promise.all([loadClientes(), loadProductos(), loadVentas()]);
+
+    document.getElementById('search-ventas').addEventListener('input', debounce(loadVentas, 300));
+    document.getElementById('filter-estado-venta').addEventListener('change', loadVentas);
+
+    addFicha();
+  }
+
+  async function loadClientes() {
+    let q = sb.from('clientes').select('id, nombre').eq('activo', true).order('nombre');
+    if (currentUser.perfil?.empresa_id) q = q.eq('empresa_id', currentUser.perfil.empresa_id);
+    const { data } = await q;
+    allClientes = data || [];
+    const opts = allClientes.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+    document.getElementById('venta-cliente').innerHTML = '<option value="">Seleccioná un cliente...</option>' + opts;
+    document.getElementById('pago-cliente-select').innerHTML = '<option value="">Seleccioná un cliente...</option>' + opts;
+  }
+
+  async function loadProductos() {
+    let q = sb.from('productos').select('id, nombre, precio_contado, porcentaje_cuotas, stock').eq('activo', true).order('nombre');
+    if (currentUser.perfil?.empresa_id) q = q.eq('empresa_id', currentUser.perfil.empresa_id);
+    const { data } = await q;
+    allProductos = data || [];
+  }
+
+  function switchTab(id) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    const idx = ['tab-lista','tab-nueva','tab-pagos'].indexOf(id);
+    document.querySelectorAll('.tab-btn')[idx]?.classList.add('active');
+    if (id === 'tab-lista') loadVentas();
+  }
+
+  // ==============================================================
+  // NUEVA VENTA
+  // ==============================================================
+  function addFicha() {
+    const id = ++fichaCount;
+    const prodOpts = allProductos.map(p =>
+      `<option value="${p.id}" data-precio="${p.precio_contado}" data-pct="${p.porcentaje_cuotas}" data-stock="${p.stock}">${p.nombre} — Stock: ${p.stock}</option>`
+    ).join('');
+
+    const html = `
+      <div class="ficha-item" id="ficha-${id}">
+        <button class="remove-btn" onclick="removeFicha(${id})" title="Eliminar">✕</button>
+        <div class="section-divider">Producto #${id}</div>
+        <div class="form-grid form-grid-2">
+          <div class="form-group">
+            <label class="form-label">Producto <span class="required">*</span></label>
+            <select class="form-control" id="ficha-prod-${id}" onchange="onProductoChange(${id})">
+              <option value="">Seleccioná un producto...</option>
+              ${prodOpts}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cantidad</label>
+            <input type="number" class="form-control" id="ficha-qty-${id}" value="1" min="1" onchange="calcCuota(${id})">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Forma de pago</label>
+            <select class="form-control" id="ficha-pago-${id}" onchange="toggleCuotas(${id}); calcCuota(${id})">
+              <option value="contado">Contado</option>
+              <option value="semanal">Semanal</option>
+              <option value="quincenal">Quincenal</option>
+              <option value="mensual">Mensual</option>
+            </select>
+          </div>
+          <div class="form-group" id="ficha-ncuotas-group-${id}" style="display:none">
+            <label class="form-label">N° cuotas</label>
+            <input type="number" class="form-control" id="ficha-ncuotas-${id}" value="6" min="1" max="120" onchange="calcCuota(${id})">
+          </div>
+        </div>
+        <div class="form-grid form-grid-2" id="ficha-extra-${id}" style="display:none">
+          <div class="form-group">
+            <label class="form-label">Día de vencimiento</label>
+            <input type="number" class="form-control" id="ficha-dia-${id}" value="15" min="1" max="31">
+            <div class="form-hint">Día del mes para cada cuota</div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mora (%)</label>
+            <input type="number" class="form-control" id="ficha-mora-${id}" value="5" min="0" max="100" step="0.1" onchange="calcCuota(${id})">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Gasto administrativo (%)</label>
+            <input type="number" class="form-control" id="ficha-admin-${id}" value="3" min="0" max="100" step="0.1">
+          </div>
+        </div>
+        <div class="cuota-preview" id="ficha-preview-${id}" style="display:none"></div>
+      </div>`;
+
+    document.getElementById('fichas-container').insertAdjacentHTML('beforeend', html);
+  }
+
+  function removeFicha(id) {
+    document.getElementById(`ficha-${id}`)?.remove();
+  }
+
+  function onProductoChange(id) {
+    const sel = document.getElementById(`ficha-prod-${id}`);
+    calcCuota(id);
+  }
+
+  function toggleCuotas(id) {
+    const forma = document.getElementById(`ficha-pago-${id}`).value;
+    const isCuotas = forma !== 'contado';
+    document.getElementById(`ficha-ncuotas-group-${id}`).style.display = isCuotas ? '' : 'none';
+    document.getElementById(`ficha-extra-${id}`).style.display = isCuotas ? '' : 'none';
+  }
+
+  function calcCuota(id) {
+    const sel = document.getElementById(`ficha-prod-${id}`);
+    const opt = sel?.options[sel.selectedIndex];
+    if (!opt?.value) return;
+
+    const precio = parseFloat(opt.dataset.precio) || 0;
+    const pctCuotas = parseFloat(opt.dataset.pct) || 0;
+    const qty = parseInt(document.getElementById(`ficha-qty-${id}`).value) || 1;
+    const forma = document.getElementById(`ficha-pago-${id}`).value;
+    const ncuotas = parseInt(document.getElementById(`ficha-ncuotas-${id}`)?.value) || 1;
+    const preview = document.getElementById(`ficha-preview-${id}`);
+
+    const totalBase = precio * qty;
+
+    if (forma === 'contado') {
+      preview.style.display = 'block';
+      preview.innerHTML = `<strong>Total contado:</strong> ${formatMoney(totalBase)}`;
+    } else {
+      const totalConRecargo = totalBase * (1 + pctCuotas / 100);
+      const valorCuota = totalConRecargo / ncuotas;
+      preview.style.display = 'block';
+      preview.innerHTML = `
+        <strong>Precio base:</strong> ${formatMoney(totalBase)} |
+        <strong>Con ${pctCuotas}% recargo:</strong> ${formatMoney(totalConRecargo)} |
+        <strong>Valor cuota:</strong> ${formatMoney(valorCuota)} × ${ncuotas} cuotas`;
+    }
+  }
+
+  function resetNuevaVenta() {
+    document.getElementById('venta-cliente').value = '';
+    document.getElementById('venta-vendedor').value = '';
+    document.getElementById('venta-fecha').value = new Date().toISOString().split('T')[0];
+    document.getElementById('fichas-container').innerHTML = '';
+    document.getElementById('venta-resumen').style.display = 'none';
+    fichaCount = 0;
+    addFicha();
+  }
+
+  async function confirmarVenta() {
+    const clienteId = document.getElementById('venta-cliente').value;
+    const vendedor = document.getElementById('venta-vendedor').value.trim();
+    const fechaVenta = document.getElementById('venta-fecha').value;
+
+    if (!clienteId) { showToast('Seleccioná un cliente', 'error'); return; }
+    if (!fechaVenta) { showToast('Ingresá la fecha', 'error'); return; }
+
+    // Recolectar fichas
+    const fichasEls = document.querySelectorAll('.ficha-item');
+    if (!fichasEls.length) { showToast('Agregá al menos un producto', 'error'); return; }
+
+    const fichas = [];
+    let valid = true;
+
+    fichasEls.forEach(el => {
+      const fid = el.id.replace('ficha-', '');
+      const prodSel = document.getElementById(`ficha-prod-${fid}`);
+      if (!prodSel?.value) { showToast(`Seleccioná un producto en la ficha ${fid}`, 'error'); valid = false; return; }
+
+      const opt = prodSel.options[prodSel.selectedIndex];
+      const precio = parseFloat(opt.dataset.precio) || 0;
+      const pctCuotas = parseFloat(opt.dataset.pct) || 0;
+      const stock = parseInt(opt.dataset.stock) || 0;
+      const qty = parseInt(document.getElementById(`ficha-qty-${fid}`)?.value) || 1;
+      const forma = document.getElementById(`ficha-pago-${fid}`).value;
+      const ncuotas = parseInt(document.getElementById(`ficha-ncuotas-${fid}`)?.value) || 1;
+      const dia = parseInt(document.getElementById(`ficha-dia-${fid}`)?.value) || 15;
+      const mora = parseFloat(document.getElementById(`ficha-mora-${fid}`)?.value) || 0;
+      const admin = parseFloat(document.getElementById(`ficha-admin-${fid}`)?.value) || 0;
+
+      if (qty > stock) { showToast(`Stock insuficiente para "${opt.text}"`, 'error'); valid = false; return; }
+
+      const totalBase = precio * qty;
+      const totalConRecargo = forma === 'contado' ? totalBase : totalBase * (1 + pctCuotas / 100);
+      const valorCuota = forma === 'contado' ? totalConRecargo : totalConRecargo / ncuotas;
+
+      fichas.push({
+        producto_id: prodSel.value,
+        cantidad: qty,
+        precio_unitario: precio,
+        forma_pago: forma,
+        cantidad_cuotas: forma === 'contado' ? 1 : ncuotas,
+        valor_cuota: valorCuota,
+        dia_vencimiento: forma === 'contado' ? null : dia,
+        mora_porcentaje: mora,
+        gasto_admin_porcentaje: admin,
+        deuda_total: totalConRecargo,
+        deuda_restante: totalConRecargo,
+        _stock_reducir: qty
+      });
+    });
+
+    if (!valid || !fichas.length) return;
+
+    showLoading('Guardando venta...');
+
+    try {
+      const empresaId = currentUser.perfil?.empresa_id;
+
+      // 1. Crear venta cabecera
+      const { data: venta, error: ventaErr } = await sb.from('ventas')
+        .insert({ cliente_id: clienteId, empresa_id: empresaId, vendedor, fecha_venta: fechaVenta })
+        .select().single();
+      if (ventaErr) throw ventaErr;
+
+      // 2. Crear items
+      for (const f of fichas) {
+        const { _stock_reducir, ...itemPayload } = f;
+        itemPayload.venta_id = venta.id;
+        itemPayload.empresa_id = empresaId;
+
+        const { data: item, error: itemErr } = await sb.from('venta_items').insert(itemPayload).select().single();
+        if (itemErr) throw itemErr;
+
+        // 3. Crear cuotas (pagos programados)
+        if (f.forma_pago !== 'contado') {
+          const cuotas = [];
+          for (let i = 1; i <= f.cantidad_cuotas; i++) {
+            const fechaVenc = calcFechaVencimiento(fechaVenta, f.forma_pago, i, f.dia_vencimiento);
+            cuotas.push({
+              empresa_id: empresaId,
+              venta_item_id: item.id,
+              numero_cuota: i,
+              fecha_vencimiento: fechaVenc,
+              monto_original: f.valor_cuota,
+              estado: 'pendiente'
+            });
+          }
+          await sb.from('pagos').insert(cuotas);
+        } else {
+          // Contado: una sola cuota con fecha hoy
+          await sb.from('pagos').insert({
+            empresa_id: empresaId,
+            venta_item_id: item.id,
+            numero_cuota: 1,
+            fecha_vencimiento: fechaVenta,
+            monto_original: f.deuda_total,
+            estado: 'pendiente'
+          });
+        }
+
+        // 4. Reducir stock
+        const prod = allProductos.find(p => p.id === f.producto_id);
+        if (prod) {
+          const nuevoStock = Math.max(0, prod.stock - _stock_reducir);
+          await sb.from('productos').update({ stock: nuevoStock }).eq('id', f.producto_id);
+          await sb.from('movimientos_stock').insert({
+            empresa_id: empresaId,
+            producto_id: f.producto_id,
+            tipo: 'salida',
+            cantidad: -_stock_reducir,
+            motivo: `Venta #${venta.id.slice(-6)}`,
+            usuario_id: currentUser.id
+          });
+        }
+      }
+
+      hideLoading();
+      showToast('¡Venta registrada con éxito! ✅', 'success');
+      resetNuevaVenta();
+      switchTab('tab-lista');
+      await Promise.all([loadProductos(), loadVentas()]);
+
+    } catch(e) {
+      hideLoading();
+      showToast('Error al guardar la venta: ' + e.message, 'error');
+    }
+  }
+
+  function calcFechaVencimiento(fechaVenta, forma, numeroCuota, dia) {
+    const base = new Date(fechaVenta + 'T00:00:00');
+    if (forma === 'semanal') {
+      base.setDate(base.getDate() + 7 * numeroCuota);
+    } else if (forma === 'quincenal') {
+      base.setDate(base.getDate() + 15 * numeroCuota);
+    } else {
+      // mensual: mismo dia cada mes
+      base.setMonth(base.getMonth() + numeroCuota);
+      base.setDate(dia || 15);
+    }
+    return base.toISOString().split('T')[0];
+  }
+
+  // ==============================================================
+  // LISTA DE VENTAS
+  // ==============================================================
+  async function loadVentas() {
+    const search = document.getElementById('search-ventas').value.toLowerCase().trim();
+    const estado = document.getElementById('filter-estado-venta').value;
+
+    let q = sb.from('ventas')
+      .select('*, clientes(nombre, telefono), venta_items(id, deuda_restante, productos(nombre))')
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (estado) q = q.eq('estado', estado);
+    if (currentUser.perfil?.empresa_id) q = q.eq('empresa_id', currentUser.perfil.empresa_id);
+
+    const { data } = await q;
+    let ventas = data || [];
+
+    if (search) {
+      ventas = ventas.filter(v => v.clientes?.nombre?.toLowerCase().includes(search));
+    }
+
+    const container = document.getElementById('ventas-list');
+    if (!ventas.length) {
+      container.innerHTML = '<p style="color:#9CA3AF;text-align:center;padding:20px">No hay ventas para mostrar</p>';
+      return;
+    }
+
+    container.innerHTML = ventas.map(v => {
+      const deudaTotal = (v.venta_items || []).reduce((s, i) => s + parseFloat(i.deuda_restante || 0), 0);
+      const prods = [...new Set((v.venta_items || []).map(i => i.productos?.nombre).filter(Boolean))].join(', ');
+      const estadoBadge = v.estado === 'activa' ? 'badge-blue' : v.estado === 'completada' ? 'badge-green' : 'badge-gray';
+
+      return `
+        <div class="card mb-3" style="padding:14px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;flex-wrap:wrap">
+            <div>
+              <div style="font-weight:700;font-size:1rem">👤 ${v.clientes?.nombre || '—'}</div>
+              <div style="font-size:0.82rem;color:#6B7280;margin-top:2px">
+                📅 ${formatDate(v.fecha_venta)}
+                ${v.vendedor ? '· 👨 ' + v.vendedor : ''}
+              </div>
+              <div style="font-size:0.82rem;color:#374151;margin-top:4px;font-weight:500">${prods}</div>
+            </div>
+            <div style="text-align:right">
+              <span class="badge ${estadoBadge}">${v.estado}</span>
+              ${deudaTotal > 0 ? `<div style="font-size:0.95rem;font-weight:700;color:var(--danger);margin-top:6px">${formatMoney(deudaTotal)}</div>` : ''}
+            </div>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-sm btn-primary" onclick="verDetalleVenta('${v.id}')">🔍 Detalle</button>
+            ${v.estado === 'activa' ? `<button class="btn btn-sm btn-success" onclick="irAPagos('${v.cliente_id}')">💳 Pagar</button>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function irAPagos(clienteId) {
+    switchTab('tab-pagos');
+    document.getElementById('pago-cliente-select').value = clienteId;
+    loadCuotasByCliente();
+  }
+
+  async function verDetalleVenta(ventaId) {
+    openModal('modal-venta-detalle');
+    document.getElementById('detalle-content').innerHTML = 'Cargando...';
+
+    const { data: venta } = await sb.from('ventas')
+      .select('*, clientes(*)')
+      .eq('id', ventaId).single();
+
+    const { data: items } = await sb.from('venta_items')
+      .select('*, productos(nombre), pagos(*)')
+      .eq('venta_id', ventaId);
+
+    if (!venta) { document.getElementById('detalle-content').innerHTML = 'Error al cargar'; return; }
+
+    document.getElementById('detalle-titulo').textContent = `🛒 Venta — ${venta.clientes?.nombre}`;
+
+    const itemsHtml = (items || []).map(item => {
+      const pagados = (item.pagos || []).filter(p => p.estado === 'pagado').length;
+      const total = item.pagos?.length || 0;
+      return `
+        <div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px">
+          <div style="font-weight:600">${item.productos?.nombre}</div>
+          <div style="font-size:0.82rem;color:#6B7280;margin-top:4px">
+            ${item.forma_pago} · ${item.cantidad_cuotas} cuota(s) · Valor: ${formatMoney(item.valor_cuota)}
+          </div>
+          <div style="margin-top:6px;font-size:0.88rem">
+            <span class="badge badge-blue">Pagadas: ${pagados}/${total}</span>
+            <span class="badge badge-red" style="margin-left:6px">Deuda: ${formatMoney(item.deuda_restante)}</span>
+          </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('detalle-content').innerHTML = `
+      <div style="margin-bottom:14px">
+        <strong>Cliente:</strong> ${venta.clientes?.nombre}<br>
+        <strong>Fecha:</strong> ${formatDate(venta.fecha_venta)}<br>
+        ${venta.vendedor ? `<strong>Vendedor:</strong> ${venta.vendedor}` : ''}
+      </div>
+      ${itemsHtml}`;
+  }
+
+  // ==============================================================
+  // PAGOS
+  // ==============================================================
+  async function loadCuotasByCliente() {
+    const clienteId = document.getElementById('pago-cliente-select').value;
+    if (!clienteId) return;
+
+    const { data: ventas } = await sb.from('ventas').select('id').eq('cliente_id', clienteId);
+    const ventaIds = (ventas || []).map(v => v.id);
+
+    if (!ventaIds.length) {
+      document.getElementById('cuotas-list').innerHTML = '<p style="color:#9CA3AF;text-align:center;padding:20px">Este cliente no tiene ventas</p>';
+      return;
+    }
+
+    const { data: items } = await sb.from('venta_items')
+      .select('*, productos(nombre), pagos(*)')
+      .in('venta_id', ventaIds)
+      .eq('estado', 'pendiente');
+
+    if (!items?.length) {
+      document.getElementById('cuotas-list').innerHTML = '<p style="color:#10B981;text-align:center;padding:20px">✅ Este cliente no tiene deudas pendientes</p>';
+      return;
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+
+    const html = (items || []).map(item => {
+      const cuotasPendientes = (item.pagos || []).filter(p => p.estado === 'pendiente');
+      const cuotasPagadas = (item.pagos || []).filter(p => p.estado === 'pagado').length;
+
+      const cuotasHtml = cuotasPendientes.map(c => {
+        const vencida = c.fecha_vencimiento < today;
+        const rowClass = vencida ? 'vencida' : '';
+        return `
+          <div class="pago-row ${rowClass}">
+            <div style="flex:1;font-size:0.85rem">
+              <strong>Cuota #${c.numero_cuota}</strong> — Vence: ${formatDate(c.fecha_vencimiento)}
+              ${vencida ? '<span class="badge badge-red" style="margin-left:6px">Vencida</span>' : ''}
+            </div>
+            <div style="font-weight:600;font-size:0.9rem">${formatMoney(c.monto_original)}</div>
+            <button class="btn btn-sm btn-success" onclick="openPagoModal('${c.id}', '${item.id}', ${c.monto_original}, '${c.fecha_vencimiento}', ${item.mora_porcentaje}, ${item.gasto_admin_porcentaje})">
+              💳 Pagar
+            </button>
+          </div>`;
+      }).join('');
+
+      return `
+        <div class="card mb-3" style="padding:14px">
+          <div style="font-weight:700;margin-bottom:6px">📦 ${item.productos?.nombre}</div>
+          <div style="font-size:0.82rem;color:#6B7280;margin-bottom:10px">
+            ${item.forma_pago} · Pagadas ${cuotasPagadas}/${item.cantidad_cuotas} · Deuda: ${formatMoney(item.deuda_restante)}
+          </div>
+          ${cuotasHtml || '<p style="color:#6B7280;font-size:0.85rem">No hay cuotas pendientes</p>'}
+        </div>`;
+    }).join('');
+
+    document.getElementById('cuotas-list').innerHTML = html;
+  }
+
+  function openPagoModal(cuotaId, itemId, montoOriginal, fechaVenc, moraPct, adminPct) {
+    document.getElementById('pago-cuota-id').value = cuotaId;
+    document.getElementById('pago-item-id').value = itemId;
+    document.getElementById('pago-fecha').value = new Date().toISOString().split('T')[0];
+
+    const today = new Date().toISOString().split('T')[0];
+    const vencida = fechaVenc < today;
+    let monto = montoOriginal;
+    let hint = `Monto original: ${formatMoney(montoOriginal)}`;
+
+    if (vencida) {
+      const mora = montoOriginal * (moraPct / 100);
+      const admin = montoOriginal * (adminPct / 100);
+      monto = montoOriginal + mora + admin;
+      hint = `Mora ${moraPct}%: +${formatMoney(mora)} | Admin ${adminPct}%: +${formatMoney(admin)} | Total: ${formatMoney(monto)}`;
+    }
+
+    document.getElementById('pago-monto').value = monto.toFixed(2);
+    document.getElementById('pago-calculo-hint').textContent = hint;
+    document.getElementById('pago-info').innerHTML = vencida
+      ? `⚠️ Cuota vencida desde ${formatDate(fechaVenc)} — se aplica mora y gasto admin.`
+      : `✅ Cuota al día. Vence: ${formatDate(fechaVenc)}`;
+
+    openModal('modal-pagar');
+  }
+
+  async function confirmarPago() {
+    const cuotaId = document.getElementById('pago-cuota-id').value;
+    const itemId = document.getElementById('pago-item-id').value;
+    const fechaPago = document.getElementById('pago-fecha').value;
+    const monto = parseFloat(document.getElementById('pago-monto').value);
+
+    if (!fechaPago) { showToast('Ingresá la fecha de pago', 'error'); return; }
+
+    try {
+      // Obtener cuota
+      const { data: cuota } = await sb.from('pagos').select('*').eq('id', cuotaId).single();
+      if (!cuota) throw new Error('Cuota no encontrada');
+
+      const today = new Date().toISOString().split('T')[0];
+      const vencida = cuota.fecha_vencimiento < today;
+      const { data: item } = await sb.from('venta_items').select('*').eq('id', itemId).single();
+
+      const mora = vencida ? cuota.monto_original * (item.mora_porcentaje / 100) : 0;
+      const adminGasto = vencida ? cuota.monto_original * (item.gasto_admin_porcentaje / 100) : 0;
+
+      // Marcar cuota como pagada
+      await sb.from('pagos').update({
+        fecha_pago: fechaPago,
+        monto_pagado: monto,
+        mora_aplicada: mora,
+        gasto_admin_aplicado: adminGasto,
+        estado: 'pagado'
+      }).eq('id', cuotaId);
+
+      // Actualizar deuda en item
+      const nuevaDeuda = Math.max(0, (item.deuda_restante || 0) - cuota.monto_original);
+      const estadoItem = nuevaDeuda <= 0 ? 'pagado' : 'pendiente';
+      await sb.from('venta_items').update({ deuda_restante: nuevaDeuda, estado: estadoItem }).eq('id', itemId);
+
+      closeModal('modal-pagar');
+      showToast('¡Pago registrado! ✅', 'success');
+      const clienteId = document.getElementById('pago-cliente-select').value;
+      if (clienteId) loadCuotasByCliente();
+
+    } catch(e) {
+      showToast('Error: ' + e.message, 'error');
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

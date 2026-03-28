@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stockia — Clientes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="dashboard.html" class="nav-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 44">
+        <text x="0" y="34" font-family="Inter,sans-serif" font-weight="700" font-size="36" fill="white" letter-spacing="-1">St</text>
+        <rect x="42" y="10" width="22" height="22" rx="3" fill="none" stroke="white" stroke-width="3"/>
+        <line x1="42" y1="18" x2="64" y2="18" stroke="white" stroke-width="2"/>
+        <line x1="49" y1="10" x2="49" y2="18" stroke="white" stroke-width="2"/>
+        <line x1="57" y1="10" x2="57" y2="18" stroke="white" stroke-width="2"/>
+        <text x="66" y="34" font-family="Inter,sans-serif" font-weight="700" font-size="36" fill="white" letter-spacing="-1">ckia</text>
+      </svg>
+    </a>
+    <div class="nav-desktop">
+      <a href="dashboard.html" data-nav="dashboard.html">🏠 Inicio</a>
+      <a href="productos.html" data-nav="productos.html">📦 Productos</a>
+      <a href="clientes.html" data-nav="clientes.html">👥 Clientes</a>
+      <a href="ventas.html" data-nav="ventas.html">🛒 Ventas</a>
+      <a href="admin.html" data-nav="admin.html" id="admin-nav-link" class="hidden">⚙️ Admin</a>
+    </div>
+    <div class="nav-right">
+      <div class="nav-user-info"><strong id="nav-user-name">—</strong></div>
+      <button class="btn btn-sm" onclick="logout()" style="background:rgba(239,68,68,0.2);color:#FCA5A5;border:1px solid rgba(239,68,68,0.3)">Salir</button>
+    </div>
+    <button class="hamburger" id="hamburger-btn"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<div class="nav-mobile-menu" id="nav-mobile-menu">
+  <a href="dashboard.html" data-nav="dashboard.html"><span class="nav-icon">🏠</span> Inicio</a>
+  <a href="productos.html" data-nav="productos.html"><span class="nav-icon">📦</span> Productos</a>
+  <a href="clientes.html" data-nav="clientes.html"><span class="nav-icon">👥</span> Clientes</a>
+  <a href="ventas.html" data-nav="ventas.html"><span class="nav-icon">🛒</span> Ventas</a>
+  <a href="admin.html" data-nav="admin.html" id="admin-nav-mobile" class="hidden"><span class="nav-icon">⚙️</span> Admin</a>
+  <div class="nav-user-mobile">
+    <div id="mobile-user-name" style="font-weight:600;color:white"></div>
+    <button class="btn btn-sm btn-logout" onclick="logout()">🚪 Cerrar sesión</button>
+  </div>
+</div>
+
+<main class="main-content">
+  <div class="page-header flex items-center justify-between flex-wrap gap-2">
+    <div>
+      <h1>👥 Clientes</h1>
+      <p>Gestioná tu cartera de clientes</p>
+    </div>
+    <button class="btn btn-success btn-lg" onclick="openModal('modal-cliente')">➕ Nuevo cliente</button>
+  </div>
+
+  <div class="search-bar">
+    <div class="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="form-control" id="search-input" placeholder="Buscar por nombre, DNI o teléfono...">
+    </div>
+  </div>
+
+  <div class="card" style="padding:0">
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>DNI</th>
+            <th>Teléfono</th>
+            <th>Dirección</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="clientes-tbody">
+          <tr><td colspan="5" class="table-empty">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<footer>© <span id="footer-year"></span> Stockia. Todos los derechos reservados.</footer>
+<div id="toast-container"></div>
+
+<!-- MODAL: Crear/Editar Cliente -->
+<div class="modal-overlay" id="modal-cliente">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-cliente-title">Nuevo cliente</h3>
+      <button class="modal-close" onclick="closeModal('modal-cliente'); clearClienteForm()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="cli-id">
+      <div class="form-group">
+        <label class="form-label">Nombre completo <span class="required">*</span></label>
+        <input type="text" class="form-control" id="cli-nombre" placeholder="Ej: María González">
+      </div>
+      <div class="form-grid form-grid-2">
+        <div class="form-group">
+          <label class="form-label">DNI</label>
+          <input type="text" class="form-control" id="cli-dni" placeholder="12.345.678" maxlength="15">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Teléfono</label>
+          <input type="tel" class="form-control" id="cli-telefono" placeholder="011-1234-5678">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Dirección</label>
+        <input type="text" class="form-control" id="cli-direccion" placeholder="Calle 123, Ciudad">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-cliente'); clearClienteForm()">Cancelar</button>
+      <button class="btn btn-success" onclick="saveCliente()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Ver deudas del cliente -->
+<div class="modal-overlay" id="modal-deudas">
+  <div class="modal" style="max-width:640px">
+    <div class="modal-header">
+      <h3 id="deudas-titulo">Deudas del cliente</h3>
+      <button class="modal-close" onclick="closeModal('modal-deudas')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div id="deudas-content" style="padding:16px">Cargando...</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-deudas')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script src="utils.js"></script>
+<script>
+  const sb = initSupabase();
+  let currentUser = null;
+  let allClientes = [];
+
+  async function init() {
+    const session = await checkAuth();
+    if (!session) return;
+    currentUser = await getCurrentUser();
+    if (!currentUser) { logout(); return; }
+
+    document.getElementById('nav-user-name').textContent = currentUser.perfil?.nombre || currentUser.email;
+    document.getElementById('mobile-user-name').textContent = currentUser.perfil?.nombre || currentUser.email;
+
+    if (['admin_global','admin_empresa'].includes(currentUser.perfil?.rol)) {
+      document.getElementById('admin-nav-link')?.classList.remove('hidden');
+      document.getElementById('admin-nav-mobile')?.classList.remove('hidden');
+    }
+
+    setActiveNavLink();
+    initHamburger();
+    setFooterYear();
+
+    document.getElementById('search-input').addEventListener('input', debounce(renderClientes, 250));
+
+    await loadClientes();
+  }
+
+  async function loadClientes() {
+    try {
+      let q = sb.from('clientes').select('*').eq('activo', true).order('nombre');
+      if (currentUser.perfil?.empresa_id) q = q.eq('empresa_id', currentUser.perfil.empresa_id);
+      const { data, error } = await q;
+      if (error) throw error;
+      allClientes = data || [];
+      renderClientes();
+    } catch(e) {
+      showToast('Error al cargar clientes', 'error');
+    }
+  }
+
+  function renderClientes() {
+    const search = document.getElementById('search-input').value.toLowerCase().trim();
+    const filtered = allClientes.filter(c =>
+      !search ||
+      c.nombre?.toLowerCase().includes(search) ||
+      c.dni?.toLowerCase().includes(search) ||
+      c.telefono?.toLowerCase().includes(search)
+    );
+
+    const tbody = document.getElementById('clientes-tbody');
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="table-empty">👤 No se encontraron clientes</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(c => `
+      <tr>
+        <td style="font-weight:500">${c.nombre}</td>
+        <td>${c.dni || '—'}</td>
+        <td>${c.telefono ? `<a href="tel:${c.telefono}" style="color:var(--secondary)">${c.telefono}</a>` : '—'}</td>
+        <td style="font-size:0.85rem;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.direccion || '—'}</td>
+        <td>
+          <div class="row-actions">
+            <button class="btn btn-sm btn-primary" onclick="editCliente('${c.id}')">✏️</button>
+            <button class="btn btn-sm btn-outline" onclick="verDeudas('${c.id}','${c.nombre.replace(/'/g,"\\'")}')">💰</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteCliente('${c.id}')">🗑️</button>
+          </div>
+        </td>
+      </tr>`
+    ).join('');
+  }
+
+  function editCliente(id) {
+    const c = allClientes.find(x => x.id === id);
+    if (!c) return;
+    document.getElementById('modal-cliente-title').textContent = 'Editar cliente';
+    document.getElementById('cli-id').value = c.id;
+    document.getElementById('cli-nombre').value = c.nombre;
+    document.getElementById('cli-dni').value = c.dni || '';
+    document.getElementById('cli-telefono').value = c.telefono || '';
+    document.getElementById('cli-direccion').value = c.direccion || '';
+    openModal('modal-cliente');
+  }
+
+  async function saveCliente() {
+    const id = document.getElementById('cli-id').value;
+    const nombre = document.getElementById('cli-nombre').value.trim();
+    const dni = document.getElementById('cli-dni').value.trim();
+    const telefono = document.getElementById('cli-telefono').value.trim();
+    const direccion = document.getElementById('cli-direccion').value.trim();
+
+    if (!nombre) { showToast('El nombre es requerido', 'error'); return; }
+
+    const payload = {
+      nombre, dni, telefono, direccion, activo: true,
+      empresa_id: currentUser.perfil?.empresa_id
+    };
+
+    try {
+      if (id) {
+        const { error } = await sb.from('clientes').update(payload).eq('id', id);
+        if (error) throw error;
+        showToast('Cliente actualizado ✅', 'success');
+      } else {
+        const { error } = await sb.from('clientes').insert(payload);
+        if (error) throw error;
+        showToast('Cliente creado ✅', 'success');
+      }
+      closeModal('modal-cliente');
+      clearClienteForm();
+      await loadClientes();
+    } catch(e) {
+      showToast('Error: ' + e.message, 'error');
+    }
+  }
+
+  function clearClienteForm() {
+    ['cli-id','cli-nombre','cli-dni','cli-telefono','cli-direccion'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('modal-cliente-title').textContent = 'Nuevo cliente';
+  }
+
+  async function deleteCliente(id) {
+    if (!confirmDialog('¿Dar de baja a este cliente? Sus ventas no se eliminarán.')) return;
+    try {
+      await sb.from('clientes').update({ activo: false }).eq('id', id);
+      showToast('Cliente dado de baja', 'success');
+      await loadClientes();
+    } catch(e) {
+      showToast('Error: ' + e.message, 'error');
+    }
+  }
+
+  async function verDeudas(clienteId, nombre) {
+    document.getElementById('deudas-titulo').textContent = `💰 Deudas: ${nombre}`;
+    document.getElementById('deudas-content').innerHTML = 'Cargando...';
+    openModal('modal-deudas');
+
+    try {
+      const { data: items } = await sb.from('venta_items')
+        .select('*, productos(nombre), ventas(fecha_venta)')
+        .eq('estado', 'pendiente')
+        .not('deuda_restante', 'eq', 0);
+
+      // Filtrar por cliente a través de ventas
+      const { data: ventas } = await sb.from('ventas')
+        .select('id')
+        .eq('cliente_id', clienteId);
+
+      const ventaIds = (ventas || []).map(v => v.id);
+      const deudas = (items || []).filter(i => ventaIds.includes(i.venta_id));
+
+      if (!deudas.length) {
+        document.getElementById('deudas-content').innerHTML =
+          '<p style="color:#10B981">✅ Este cliente no tiene deudas pendientes</p>';
+        return;
+      }
+
+      const total = deudas.reduce((s, d) => s + parseFloat(d.deuda_restante || 0), 0);
+
+      document.getElementById('deudas-content').innerHTML = `
+        ${deudas.map(d => `
+          <div style="padding:12px 0;border-bottom:1px solid #F3F4F6">
+            <div style="font-weight:600;font-size:0.95rem">${d.productos?.nombre || '—'}</div>
+            <div style="font-size:0.82rem;color:#6B7280;margin-top:2px">
+              Venta: ${formatDate(d.ventas?.fecha_venta)} ·
+              ${d.forma_pago} ·
+              ${d.deuda_restante ? d.cantidad_cuotas + ' cuotas' : 'Contado'}
+            </div>
+            <div style="font-size:1rem;font-weight:700;color:var(--danger);margin-top:4px">
+              Deuda: ${formatMoney(d.deuda_restante)}
+            </div>
+          </div>
+        `).join('')}
+        <div style="text-align:right;padding-top:12px;font-weight:700;font-size:1.1rem;color:var(--danger)">
+          Total: ${formatMoney(total)}
+        </div>`;
+    } catch(e) {
+      showToast('Error al cargar deudas', 'error');
+    }
+  }
+
+  init();
+</script>
+</body>
+</html>

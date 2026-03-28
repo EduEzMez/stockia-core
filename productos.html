@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stockia — Productos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <div class="nav-inner">
+    <a href="dashboard.html" class="nav-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 44">
+        <text x="0" y="34" font-family="Inter,sans-serif" font-weight="700" font-size="36" fill="white" letter-spacing="-1">St</text>
+        <rect x="42" y="10" width="22" height="22" rx="3" fill="none" stroke="white" stroke-width="3"/>
+        <line x1="42" y1="18" x2="64" y2="18" stroke="white" stroke-width="2"/>
+        <line x1="49" y1="10" x2="49" y2="18" stroke="white" stroke-width="2"/>
+        <line x1="57" y1="10" x2="57" y2="18" stroke="white" stroke-width="2"/>
+        <text x="66" y="34" font-family="Inter,sans-serif" font-weight="700" font-size="36" fill="white" letter-spacing="-1">ckia</text>
+      </svg>
+    </a>
+    <div class="nav-desktop">
+      <a href="dashboard.html" data-nav="dashboard.html">🏠 Inicio</a>
+      <a href="productos.html" data-nav="productos.html">📦 Productos</a>
+      <a href="clientes.html" data-nav="clientes.html">👥 Clientes</a>
+      <a href="ventas.html" data-nav="ventas.html">🛒 Ventas</a>
+      <a href="admin.html" data-nav="admin.html" id="admin-nav-link" class="hidden">⚙️ Admin</a>
+    </div>
+    <div class="nav-right">
+      <div class="nav-user-info"><strong id="nav-user-name">—</strong></div>
+      <button class="btn btn-sm" onclick="logout()" style="background:rgba(239,68,68,0.2);color:#FCA5A5;border:1px solid rgba(239,68,68,0.3)">Salir</button>
+    </div>
+    <button class="hamburger" id="hamburger-btn"><span></span><span></span><span></span></button>
+  </div>
+</nav>
+
+<div class="nav-mobile-menu" id="nav-mobile-menu">
+  <a href="dashboard.html" data-nav="dashboard.html"><span class="nav-icon">🏠</span> Inicio</a>
+  <a href="productos.html" data-nav="productos.html"><span class="nav-icon">📦</span> Productos</a>
+  <a href="clientes.html" data-nav="clientes.html"><span class="nav-icon">👥</span> Clientes</a>
+  <a href="ventas.html" data-nav="ventas.html"><span class="nav-icon">🛒</span> Ventas</a>
+  <a href="admin.html" data-nav="admin.html" id="admin-nav-mobile" class="hidden"><span class="nav-icon">⚙️</span> Admin</a>
+  <div class="nav-user-mobile">
+    <div id="mobile-user-name" style="font-weight:600;color:white"></div>
+    <button class="btn btn-sm btn-logout" onclick="logout()">🚪 Cerrar sesión</button>
+  </div>
+</div>
+
+<main class="main-content">
+  <div class="page-header flex items-center justify-between flex-wrap gap-2">
+    <div>
+      <h1>📦 Productos</h1>
+      <p>Gestioná tu catálogo y stock</p>
+    </div>
+    <button class="btn btn-success btn-lg" onclick="openModal('modal-producto')">➕ Nuevo producto</button>
+  </div>
+
+  <!-- Search -->
+  <div class="search-bar">
+    <div class="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="form-control" id="search-input" placeholder="Buscar por nombre...">
+    </div>
+    <select class="form-control" id="filter-stock" style="max-width:160px">
+      <option value="">Todos</option>
+      <option value="low">Bajo stock (&lt;5)</option>
+      <option value="out">Sin stock</option>
+    </select>
+  </div>
+
+  <!-- Table -->
+  <div class="card" style="padding:0">
+    <div class="table-wrapper">
+      <table id="productos-table">
+        <thead>
+          <tr>
+            <th>Producto</th>
+            <th>Precio contado</th>
+            <th>% Cuotas</th>
+            <th>Stock</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody id="productos-tbody">
+          <tr><td colspan="6" class="table-empty">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<footer>© <span id="footer-year"></span> Stockia. Todos los derechos reservados.</footer>
+<div id="toast-container"></div>
+
+<!-- MODAL: Crear/Editar Producto -->
+<div class="modal-overlay" id="modal-producto">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modal-producto-title">Nuevo producto</h3>
+      <button class="modal-close" onclick="closeModal('modal-producto')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="prod-id">
+      <div class="form-group">
+        <label class="form-label">Nombre <span class="required">*</span></label>
+        <input type="text" class="form-control" id="prod-nombre" placeholder="Ej: Heladera Samsung">
+      </div>
+      <div class="form-grid form-grid-2">
+        <div class="form-group">
+          <label class="form-label">Precio contado ($) <span class="required">*</span></label>
+          <input type="number" class="form-control" id="prod-precio" min="0" step="0.01" placeholder="0.00">
+        </div>
+        <div class="form-group">
+          <label class="form-label">% Aumento cuotas</label>
+          <input type="number" class="form-control" id="prod-pct-cuotas" min="0" max="999" step="0.1" placeholder="0">
+          <div class="form-hint">Ej: 30 = 30% de recargo en cuotas</div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Stock inicial</label>
+        <input type="number" class="form-control" id="prod-stock" min="0" step="1" placeholder="0">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-producto')">Cancelar</button>
+      <button class="btn btn-success" onclick="saveProducto()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Ajuste de stock -->
+<div class="modal-overlay" id="modal-stock">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Ajustar stock</h3>
+      <button class="modal-close" onclick="closeModal('modal-stock')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="stock-prod-id">
+      <p style="font-weight:600;margin-bottom:16px" id="stock-prod-nombre"></p>
+      <div class="form-group">
+        <label class="form-label">Tipo de movimiento</label>
+        <select class="form-control" id="stock-tipo">
+          <option value="entrada">📥 Entrada (suma stock)</option>
+          <option value="salida">📤 Salida (resta stock)</option>
+          <option value="ajuste">🔧 Ajuste manual (establece valor)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Cantidad <span class="required">*</span></label>
+        <input type="number" class="form-control" id="stock-cantidad" min="0" placeholder="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Motivo</label>
+        <input type="text" class="form-control" id="stock-motivo" placeholder="Ej: Compra a proveedor, corrección...">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-stock')">Cancelar</button>
+      <button class="btn btn-primary" onclick="saveStockMovimiento()">✅ Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Log de movimientos -->
+<div class="modal-overlay" id="modal-log">
+  <div class="modal" style="max-width:600px">
+    <div class="modal-header">
+      <h3 id="log-titulo">Historial de movimientos</h3>
+      <button class="modal-close" onclick="closeModal('modal-log')">✕</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr><th>Fecha</th><th>Tipo</th><th>Cantidad</th><th>Motivo</th></tr>
+          </thead>
+          <tbody id="log-tbody">
+            <tr><td colspan="4" class="table-empty">Cargando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('modal-log')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script src="utils.js"></script>
+<script>
+  const sb = initSupabase();
+  let currentUser = null;
+  let allProductos = [];
+
+  async function init() {
+    const session = await checkAuth();
+    if (!session) return;
+    currentUser = await getCurrentUser();
+    if (!currentUser) { logout(); return; }
+
+    document.getElementById('nav-user-name').textContent = currentUser.perfil?.nombre || currentUser.email;
+    document.getElementById('mobile-user-name').textContent = currentUser.perfil?.nombre || currentUser.email;
+
+    if (['admin_global','admin_empresa'].includes(currentUser.perfil?.rol)) {
+      document.getElementById('admin-nav-link')?.classList.remove('hidden');
+      document.getElementById('admin-nav-mobile')?.classList.remove('hidden');
+    }
+
+    setActiveNavLink();
+    initHamburger();
+    setFooterYear();
+
+    // Search listeners
+    const searchInput = document.getElementById('search-input');
+    searchInput.addEventListener('input', debounce(renderProductos, 250));
+    document.getElementById('filter-stock').addEventListener('change', renderProductos);
+
+    await loadProductos();
+  }
+
+  async function loadProductos() {
+    try {
+      let q = sb.from('productos').select('*').eq('activo', true).order('nombre');
+      if (currentUser.perfil?.empresa_id) q = q.eq('empresa_id', currentUser.perfil.empresa_id);
+      const { data, error } = await q;
+      if (error) throw error;
+      allProductos = data || [];
+      renderProductos();
+    } catch(e) {
+      showToast('Error al cargar productos', 'error');
+    }
+  }
+
+  function renderProductos() {
+    const search = document.getElementById('search-input').value.toLowerCase().trim();
+    const filterStock = document.getElementById('filter-stock').value;
+
+    let filtered = allProductos.filter(p => {
+      const matchSearch = !search || p.nombre.toLowerCase().includes(search);
+      const matchStock = !filterStock ||
+        (filterStock === 'low' && p.stock < 5 && p.stock > 0) ||
+        (filterStock === 'out' && p.stock === 0);
+      return matchSearch && matchStock;
+    });
+
+    const tbody = document.getElementById('productos-tbody');
+    if (!filtered.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="table-empty">📭 No se encontraron productos</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(p => {
+      const stockBadge = p.stock === 0
+        ? `<span class="badge badge-red">Sin stock</span>`
+        : p.stock < 5
+          ? `<span class="badge badge-yellow">${p.stock}</span>`
+          : `<span class="badge badge-green">${p.stock}</span>`;
+
+      return `
+        <tr>
+          <td style="font-weight:500">${p.nombre}</td>
+          <td>${formatMoney(p.precio_contado)}</td>
+          <td>${p.porcentaje_cuotas}%</td>
+          <td>${stockBadge}</td>
+          <td><span class="badge badge-green">Activo</span></td>
+          <td>
+            <div class="row-actions">
+              <button class="btn btn-sm btn-primary" onclick="editProducto('${p.id}')">✏️</button>
+              <button class="btn btn-sm btn-outline" onclick="openStockModal('${p.id}','${p.nombre.replace(/'/g,"\\'")}')">📊</button>
+              <button class="btn btn-sm" onclick="openLogModal('${p.id}','${p.nombre.replace(/'/g,"\\'")}')">📋</button>
+              <button class="btn btn-sm btn-danger" onclick="deleteProducto('${p.id}')">🗑️</button>
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  function editProducto(id) {
+    const p = allProductos.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('modal-producto-title').textContent = 'Editar producto';
+    document.getElementById('prod-id').value = p.id;
+    document.getElementById('prod-nombre').value = p.nombre;
+    document.getElementById('prod-precio').value = p.precio_contado;
+    document.getElementById('prod-pct-cuotas').value = p.porcentaje_cuotas;
+    document.getElementById('prod-stock').value = p.stock;
+    openModal('modal-producto');
+  }
+
+  async function saveProducto() {
+    const id = document.getElementById('prod-id').value;
+    const nombre = document.getElementById('prod-nombre').value.trim();
+    const precio = parseFloat(document.getElementById('prod-precio').value) || 0;
+    const pctCuotas = parseFloat(document.getElementById('prod-pct-cuotas').value) || 0;
+    const stock = parseInt(document.getElementById('prod-stock').value) || 0;
+
+    if (!nombre) { showToast('El nombre es requerido', 'error'); return; }
+    if (precio < 0) { showToast('El precio no puede ser negativo', 'error'); return; }
+
+    const payload = {
+      nombre,
+      precio_contado: precio,
+      porcentaje_cuotas: pctCuotas,
+      stock,
+      activo: true,
+      empresa_id: currentUser.perfil?.empresa_id
+    };
+
+    try {
+      if (id) {
+        const { error } = await sb.from('productos').update(payload).eq('id', id);
+        if (error) throw error;
+        showToast('Producto actualizado ✅', 'success');
+      } else {
+        const { error } = await sb.from('productos').insert(payload);
+        if (error) throw error;
+        showToast('Producto creado ✅', 'success');
+      }
+      closeModal('modal-producto');
+      clearProductoForm();
+      await loadProductos();
+    } catch(e) {
+      showToast('Error al guardar: ' + e.message, 'error');
+    }
+  }
+
+  function clearProductoForm() {
+    ['prod-id','prod-nombre','prod-precio','prod-pct-cuotas','prod-stock'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+    document.getElementById('modal-producto-title').textContent = 'Nuevo producto';
+  }
+
+  async function deleteProducto(id) {
+    if (!confirmDialog('¿Estás seguro/a de dar de baja este producto? Esta acción no se puede deshacer.')) return;
+    try {
+      const { error } = await sb.from('productos').update({ activo: false }).eq('id', id);
+      if (error) throw error;
+      showToast('Producto dado de baja', 'success');
+      await loadProductos();
+    } catch(e) {
+      showToast('Error: ' + e.message, 'error');
+    }
+  }
+
+  function openStockModal(id, nombre) {
+    document.getElementById('stock-prod-id').value = id;
+    document.getElementById('stock-prod-nombre').textContent = `📦 ${nombre}`;
+    document.getElementById('stock-cantidad').value = '';
+    document.getElementById('stock-motivo').value = '';
+    openModal('modal-stock');
+  }
+
+  async function saveStockMovimiento() {
+    const prodId = document.getElementById('stock-prod-id').value;
+    const tipo = document.getElementById('stock-tipo').value;
+    const cantidad = parseInt(document.getElementById('stock-cantidad').value) || 0;
+    const motivo = document.getElementById('stock-motivo').value.trim();
+
+    if (cantidad <= 0) { showToast('Ingresá una cantidad válida', 'error'); return; }
+
+    try {
+      const prod = allProductos.find(p => p.id === prodId);
+      let nuevoStock = prod?.stock || 0;
+
+      if (tipo === 'entrada') nuevoStock += cantidad;
+      else if (tipo === 'salida') nuevoStock = Math.max(0, nuevoStock - cantidad);
+      else if (tipo === 'ajuste') nuevoStock = cantidad;
+
+      // Actualizar stock
+      const { error: stockErr } = await sb.from('productos').update({ stock: nuevoStock }).eq('id', prodId);
+      if (stockErr) throw stockErr;
+
+      // Registrar movimiento
+      await sb.from('movimientos_stock').insert({
+        producto_id: prodId,
+        empresa_id: currentUser.perfil?.empresa_id,
+        tipo,
+        cantidad: tipo === 'ajuste' ? cantidad : (tipo === 'salida' ? -cantidad : cantidad),
+        motivo,
+        usuario_id: currentUser.id
+      });
+
+      showToast('Stock actualizado ✅', 'success');
+      closeModal('modal-stock');
+      await loadProductos();
+    } catch(e) {
+      showToast('Error: ' + e.message, 'error');
+    }
+  }
+
+  async function openLogModal(id, nombre) {
+    document.getElementById('log-titulo').textContent = `📋 Historial: ${nombre}`;
+    document.getElementById('log-tbody').innerHTML = '<tr><td colspan="4" class="table-empty">Cargando...</td></tr>';
+    openModal('modal-log');
+
+    try {
+      const { data } = await sb.from('movimientos_stock')
+        .select('*')
+        .eq('producto_id', id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (!data?.length) {
+        document.getElementById('log-tbody').innerHTML = '<tr><td colspan="4" class="table-empty">Sin movimientos registrados</td></tr>';
+        return;
+      }
+
+      document.getElementById('log-tbody').innerHTML = data.map(m => {
+        const tipoLabels = { entrada: '📥 Entrada', salida: '📤 Salida', ajuste: '🔧 Ajuste' };
+        return `<tr>
+          <td style="font-size:0.82rem">${formatDateTime(m.created_at)}</td>
+          <td>${tipoLabels[m.tipo] || m.tipo}</td>
+          <td style="font-weight:600">${m.cantidad > 0 ? '+' : ''}${m.cantidad}</td>
+          <td style="font-size:0.85rem">${m.motivo || '—'}</td>
+        </tr>`;
+      }).join('');
+    } catch(e) {
+      showToast('Error al cargar historial', 'error');
+    }
+  }
+
+  // Reset form when modal closes
+  document.getElementById('modal-producto').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal-producto')) clearProductoForm();
+  });
+
+  init();
+</script>
+</body>
+</html>
