@@ -52,11 +52,25 @@ async function getCurrentUser() {
   const { data: { user } } = await client.auth.getUser();
   if (!user) return null;
 
-  const { data: perfil } = await client
+  // Intentar obtener perfil
+  const { data: perfil, error: perfilError } = await client
     .from('perfiles')
     .select('*, empresas(nombre)')
     .eq('id', user.id)
     .single();
+
+  if (perfilError) {
+    console.warn('Perfil no encontrado, usando defaults:', perfilError.message);
+    // Si no existe el perfil, devolver usuario con perfil básico
+    // Intentar crear el perfil
+    await client.from('perfiles').upsert({
+      id: user.id,
+      email: user.email,
+      rol: 'operador',
+      activo: true
+    }, { onConflict: 'id' });
+    return { ...user, perfil: { rol: 'operador', activo: true, email: user.email } };
+  }
 
   return { ...user, perfil };
 }

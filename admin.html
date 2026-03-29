@@ -220,7 +220,7 @@
     const session = await checkAuth();
     if (!session) return;
     currentUser = await getCurrentUser();
-    if (!currentUser) { logout(); return; }
+    if (!currentUser) { showToast("Error al cargar usuario. Intentá recargar.", "error"); return; }
 
     const rol = currentUser.perfil?.rol;
     document.getElementById('nav-user-name').textContent = currentUser.perfil?.nombre || currentUser.email;

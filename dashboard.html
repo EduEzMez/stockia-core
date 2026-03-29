@@ -144,7 +144,7 @@
     if (!session) return;
 
     currentUser = await getCurrentUser();
-    if (!currentUser) { logout(); return; }
+    if (!currentUser) { showToast("Error al cargar usuario. Intentá recargar.", "error"); return; }
 
     const perfil = currentUser.perfil;
     const nombre = perfil?.nombre || currentUser.email;
@@ -161,11 +161,12 @@
     const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches';
     document.getElementById('greeting-text').textContent = `${saludo}, ${nombre}`;
 
-    // Show admin links
-    if (perfil?.rol === 'admin_global' || perfil?.rol === 'admin_empresa') {
-      document.getElementById('admin-nav-link')?.classList.remove('hidden');
-      document.getElementById('admin-nav-mobile')?.classList.remove('hidden');
-    }
+    // Mostrar link Admin siempre (admin.html controla el acceso internamente)
+    document.getElementById('admin-nav-link')?.classList.remove('hidden');
+    document.getElementById('admin-nav-mobile')?.classList.remove('hidden');
+    
+    // Debug rol en consola
+    console.log('Usuario:', currentUser?.email, '| Rol:', perfil?.rol, '| Empresa:', perfil?.empresa_id);
 
     setActiveNavLink();
     initHamburger();
