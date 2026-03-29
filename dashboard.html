@@ -36,13 +36,14 @@
     </div>
 
     <div class="nav-right">
-      <div class="nav-user-info">
-        <strong id="nav-user-name">—</strong>
-        <span id="nav-empresa-name"></span>
+      <div style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,0.1);border-radius:10px;padding:6px 12px 6px 10px">
+        <div style="width:34px;height:34px;border-radius:50%;background:var(--secondary);display:flex;align-items:center;justify-content:center;font-size:1rem;font-weight:700;color:white;flex-shrink:0" id="nav-avatar">?</div>
+        <div style="line-height:1.2">
+          <div style="color:white;font-weight:700;font-size:0.92rem" id="nav-user-name">—</div>
+          <div style="color:rgba(255,255,255,0.6);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;display:flex;align-items:center;gap:4px"><span id="nav-rol-badge">⭐</span><span id="nav-empresa-name">Cargando...</span></div>
+        </div>
+        <button onclick="logout()" style="background:rgba(239,68,68,0.25);color:#FCA5A5;border:1px solid rgba(239,68,68,0.35);border-radius:8px;padding:6px 12px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;display:flex;align-items:center;gap:5px" title="Cerrar sesión">🚪 Salir</button>
       </div>
-      <button class="btn btn-sm" onclick="logout()" style="background:rgba(239,68,68,0.2);color:#FCA5A5;border:1px solid rgba(239,68,68,0.3)">
-        Salir
-      </button>
     </div>
 
     <!-- Hamburger -->
@@ -151,10 +152,33 @@
     const empresa = perfil?.empresas?.nombre || '';
 
     // Nav user info
-    document.getElementById('nav-user-name').textContent = nombre;
-    document.getElementById('nav-empresa-name').textContent = empresa;
-    document.getElementById('mobile-user-name').textContent = nombre;
-    document.getElementById('mobile-empresa-name').textContent = empresa;
+
+    // --- User card navbar ---
+    const rolLabels = {
+      admin_global: { label: 'Administrador', icon: '⭐' },
+      admin_empresa: { label: 'Admin Empresa', icon: '🏢' },
+      operador: { label: 'Operador', icon: '👤' }
+    };
+    const rolInfo = rolLabels[perfil?.rol] || { label: perfil?.rol || 'Usuario', icon: '👤' };
+    const nombreCorto = (perfil?.nombre || currentUser.email || '?');
+    const inicial = nombreCorto.charAt(0).toUpperCase();
+    
+    const avatarEl = document.getElementById('nav-avatar');
+    if (avatarEl) avatarEl.textContent = inicial;
+    
+    const userNameEl = document.getElementById('nav-user-name');
+    if (userNameEl) userNameEl.textContent = nombreCorto;
+    
+    const rolBadgeEl = document.getElementById('nav-rol-badge');
+    if (rolBadgeEl) rolBadgeEl.textContent = rolInfo.icon;
+    
+    const empresaNombreEl = document.getElementById('nav-empresa-name');
+    if (empresaNombreEl) empresaNombreEl.textContent = rolInfo.label;
+    
+    // Mobile menu
+    const mobileUserEl = document.getElementById('mobile-user-name');
+    if (mobileUserEl) mobileUserEl.textContent = nombreCorto;
+    // --- fin user card ---
 
     // Greeting
     const hora = new Date().getHours();
