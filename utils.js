@@ -2,8 +2,8 @@
 // STOCKIA - Utilidades Compartidas
 // ============================================================
 
-const SUPABASE_URL = 'https://gkwtspgbpqjwvyalwymc.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdrd3RzcGdicHFqd3Z5YWx3eW1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6MjA1MDAwMDAwMH0.PLACEHOLDER';
+const SUPABASE_URL = 'https://ymyihifmxgtgjgbqfyys.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlteWloaWZteGd0Z2pnYnFmeXlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NDgyMTQsImV4cCI6MjA5MDMyNDIxNH0.XeQn47IdjyYin-N4heLoXuYvqRxTLUJ9GfiIqvTd520';
 
 // Cliente Supabase vía CDN (cargado en cada HTML)
 let supabase;
