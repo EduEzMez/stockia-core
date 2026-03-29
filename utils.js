@@ -49,30 +49,49 @@ async function checkAuth(redirectTo = 'login.html') {
 async function getCurrentUser() {
   const client = getClient();
   if (!client) return null;
+
   const { data: { user } } = await client.auth.getUser();
   if (!user) return null;
 
-  // Intentar obtener perfil
-  const { data: perfil, error: perfilError } = await client
-    .from('perfiles')
-    .select('*, empresas(nombre)')
-    .eq('id', user.id)
-    .single();
+  // Nombre desde metadata de Auth (siempre disponible sin tablas)
+  const emailNombre = user.email?.split('@')[0] || 'Usuario';
+  const defaultPerfil = {
+    rol: 'operador',
+    activo: true,
+    email: user.email,
+    nombre: emailNombre,
+    empresa_id: null,
+    empresas: null
+  };
 
-  if (perfilError) {
-    console.warn('Perfil no encontrado, usando defaults:', perfilError.message);
-    // Si no existe el perfil, devolver usuario con perfil básico
-    // Intentar crear el perfil
-    await client.from('perfiles').upsert({
-      id: user.id,
-      email: user.email,
-      rol: 'operador',
-      activo: true
-    }, { onConflict: 'id' });
-    return { ...user, perfil: { rol: 'operador', activo: true, email: user.email } };
+  try {
+    const { data: perfil, error } = await client
+      .from('perfiles')
+      .select('*, empresas(nombre)')
+      .eq('id', user.id)
+      .single();
+
+    if (error || !perfil) {
+      console.warn('Sin perfil en BD, usando datos de Auth');
+      // Intentar crear perfil silenciosamente
+      client.from('perfiles').upsert({
+        id: user.id,
+        email: user.email,
+        nombre: emailNombre,
+        rol: 'operador',
+        activo: true
+      }, { onConflict: 'id' }).then(() => {});
+      return { ...user, perfil: defaultPerfil };
+    }
+
+    // Usar nombre del perfil, o si está vacío usar email
+    if (!perfil.nombre) perfil.nombre = emailNombre;
+    return { ...user, perfil };
+
+  } catch(e) {
+    console.warn('Error al obtener perfil:', e);
+    return { ...user, perfil: defaultPerfil };
   }
-
-  return { ...user, perfil };
 }
 
 // LOGOUT — funciona siempre, sin importar el estado de inicialización
