@@ -5,12 +5,22 @@
 const SUPABASE_URL = 'https://ymyihifmxgtgjgbqfyys.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlteWloaWZteGd0Z2pnYnFmeXlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NDgyMTQsImV4cCI6MjA5MDMyNDIxNH0.XeQn47IdjyYin-N4heLoXuYvqRxTLUJ9GfiIqvTd520';
 
-// Cliente Supabase vía CDN (cargado en cada HTML)
+// Cliente Supabase — se inicializa apenas carga el script
 let supabase;
+
 function initSupabase() {
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  if (!supabase) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
   return supabase;
 }
+
+// Auto-inicializar cuando el DOM esté listo (para que logout() siempre funcione)
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.supabase && !supabase) {
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+});
 
 // ============================================================
 // AUTH HELPERS
@@ -39,7 +49,12 @@ async function getCurrentUser() {
 }
 
 async function logout() {
-  await supabase.auth.signOut();
+  try {
+    if (!supabase) supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    await supabase.auth.signOut();
+  } catch(e) {
+    console.warn('Error en signOut:', e);
+  }
   window.location.href = 'login.html';
 }
 
