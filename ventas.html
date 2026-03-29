@@ -263,7 +263,7 @@
 </div>
 
 <script>
-  initSupabase(); // supabase global ready
+  const supabase = getClient();
   let currentUser = null;
   let allClientes = [];
   let allProductos = [];

@@ -5,32 +5,40 @@
 const SUPABASE_URL = 'https://ymyihifmxgtgjgbqfyys.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlteWloaWZteGd0Z2pnYnFmeXlzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3NDgyMTQsImV4cCI6MjA5MDMyNDIxNH0.XeQn47IdjyYin-N4heLoXuYvqRxTLUJ9GfiIqvTd520';
 
-// Cliente Supabase global
-let supabase = null;
+// ============================================================
+// CLIENTE SUPABASE — singleton, se crea una sola vez
+// ============================================================
+let _sb = null;
 
+function getClient() {
+  if (!_sb) {
+    if (!window.supabase) {
+      console.error('Supabase CDN no cargó todavía');
+      return null;
+    }
+    _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  return _sb;
+}
+
+// Alias global para compatibilidad con el resto del código
 function initSupabase() {
-  if (!supabase) {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  }
-  return supabase;
+  return getClient();
 }
 
-function _ensureSupabase() {
-  if (!supabase && window.supabase) {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  }
-  return supabase;
-}
-
-// Inicializar inmediatamente (este script carga después del CDN de supabase)
-_ensureSupabase();
+// También exponer como "supabase" global para que checkAuth/getCurrentUser funcionen
+Object.defineProperty(window, 'supabaseClient', {
+  get: () => getClient()
+});
 
 // ============================================================
 // AUTH HELPERS
 // ============================================================
 
 async function checkAuth(redirectTo = 'login.html') {
-  const { data: { session } } = await supabase.auth.getSession();
+  const client = getClient();
+  if (!client) { window.location.href = redirectTo; return null; }
+  const { data: { session } } = await client.auth.getSession();
   if (!session) {
     window.location.href = redirectTo;
     return null;
@@ -39,10 +47,12 @@ async function checkAuth(redirectTo = 'login.html') {
 }
 
 async function getCurrentUser() {
-  const { data: { user } } = await supabase.auth.getUser();
+  const client = getClient();
+  if (!client) return null;
+  const { data: { user } } = await client.auth.getUser();
   if (!user) return null;
 
-  const { data: perfil } = await supabase
+  const { data: perfil } = await client
     .from('perfiles')
     .select('*, empresas(nombre)')
     .eq('id', user.id)
@@ -51,37 +61,42 @@ async function getCurrentUser() {
   return { ...user, perfil };
 }
 
-async function logout() {
+// LOGOUT — funciona siempre, sin importar el estado de inicialización
+function logout() {
   try {
-    _ensureSupabase();
-    if (supabase) await supabase.auth.signOut();
+    const client = getClient();
+    if (client) {
+      client.auth.signOut().finally(() => {
+        window.location.href = 'login.html';
+      });
+    } else {
+      window.location.href = 'login.html';
+    }
   } catch(e) {
-    console.warn('Error en signOut:', e);
+    window.location.href = 'login.html';
   }
-  window.location.href = 'login.html';
 }
 
 // ============================================================
 // TOAST
 // ============================================================
 function showToast(message, type = 'info', duration = 3500) {
-  const container = document.getElementById('toast-container') || createToastContainer();
+  let container = document.getElementById('toast-container');
+  if (!container) {
+    container = document.createElement('div');
+    container.id = 'toast-container';
+    document.body.appendChild(container);
+  }
   const icons = { success: '✅', error: '❌', warning: '⚠️', info: 'ℹ️' };
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
   toast.innerHTML = `<span>${icons[type] || ''}</span><span>${message}</span>`;
   container.appendChild(toast);
   setTimeout(() => {
-    toast.style.animation = 'toastIn 0.3s ease reverse';
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.3s';
     setTimeout(() => toast.remove(), 300);
   }, duration);
-}
-
-function createToastContainer() {
-  const div = document.createElement('div');
-  div.id = 'toast-container';
-  document.body.appendChild(div);
-  return div;
 }
 
 // ============================================================
@@ -93,7 +108,7 @@ function showLoading(msg = 'Cargando...') {
     ov = document.createElement('div');
     ov.id = 'loading-overlay';
     ov.className = 'loading-overlay';
-    ov.innerHTML = `<div class="spinner" style="border-color:rgba(31,58,138,0.2);border-top-color:var(--primary)"></div><p>${msg}</p>`;
+    ov.innerHTML = `<div class="spinner" style="width:40px;height:40px;border:3px solid rgba(31,58,138,0.2);border-top-color:var(--primary);border-radius:50%;animation:spin 0.8s linear infinite"></div><p>${msg}</p>`;
     document.body.appendChild(ov);
   }
   ov.style.display = 'flex';
@@ -108,7 +123,9 @@ function hideLoading() {
 // FORMATTERS
 // ============================================================
 function formatMoney(n) {
-  return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 0 }).format(n || 0);
+  return new Intl.NumberFormat('es-AR', {
+    style: 'currency', currency: 'ARS', minimumFractionDigits: 0
+  }).format(n || 0);
 }
 
 function formatDate(d) {
@@ -172,7 +189,6 @@ function closeModal(id) {
   document.getElementById(id)?.classList.remove('open');
 }
 
-// Cerrar modal al hacer click fuera
 document.addEventListener('click', e => {
   if (e.target.classList.contains('modal-overlay')) {
     e.target.classList.remove('open');
@@ -180,38 +196,13 @@ document.addEventListener('click', e => {
 });
 
 // ============================================================
-// CONFIRM DIALOG
+// CONFIRM / DEBOUNCE
 // ============================================================
 function confirmDialog(message) {
   return confirm(message);
 }
 
-// ============================================================
-// DEBOUNCE
-// ============================================================
 function debounce(fn, delay = 300) {
   let t;
   return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); };
 }
-
-// ============================================================
-// LOGO SVG (inline)
-// ============================================================
-const LOGO_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 44" role="img" aria-label="Stockia">
-  <text x="0" y="34" font-family="Inter,sans-serif" font-weight="700" font-size="36" fill="white" letter-spacing="-1">St</text>
-  <!-- "o" como caja -->
-  <rect x="42" y="10" width="22" height="22" rx="3" fill="none" stroke="white" stroke-width="3"/>
-  <line x1="42" y1="18" x2="64" y2="18" stroke="white" stroke-width="2"/>
-  <line x1="49" y1="10" x2="49" y2="18" stroke="white" stroke-width="2"/>
-  <line x1="57" y1="10" x2="57" y2="18" stroke="white" stroke-width="2"/>
-  <text x="66" y="34" font-family="Inter,sans-serif" font-weight="700" font-size="36" fill="white" letter-spacing="-1">ckia</text>
-</svg>`;
-
-const LOGO_SVG_DARK = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 44" role="img" aria-label="Stockia">
-  <text x="0" y="34" font-family="Inter,sans-serif" font-weight="700" font-size="36" fill="#1F3A8A" letter-spacing="-1">St</text>
-  <rect x="42" y="10" width="22" height="22" rx="3" fill="none" stroke="#1F3A8A" stroke-width="3"/>
-  <line x1="42" y1="18" x2="64" y2="18" stroke="#1F3A8A" stroke-width="2"/>
-  <line x1="49" y1="10" x2="49" y2="18" stroke="#1F3A8A" stroke-width="2"/>
-  <line x1="57" y1="10" x2="57" y2="18" stroke="#1F3A8A" stroke-width="2"/>
-  <text x="66" y="34" font-family="Inter,sans-serif" font-weight="700" font-size="36" fill="#1F3A8A" letter-spacing="-1">ckia</text>
-</svg>`;
