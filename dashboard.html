@@ -159,57 +159,40 @@
   const supabase = getClient();
   let currentUser = null;
 
-  async function init() {
+    async function init() {
     const session = await checkAuth();
     if (!session) return;
 
-    currentUser = await getCurrentUser();
-    if (!currentUser) { showToast("Error al cargar usuario. Intentá recargar.", "error"); return; }
+    // Obtener usuario directo desde Auth (siempre disponible)
+    const client = getClient();
+    const { data: { user } } = await client.auth.getUser();
+    if (!user) { logout(); return; }
 
-    const perfil = currentUser.perfil;
-    const nombre = perfil?.nombre || currentUser.email;
-    const empresa = perfil?.empresas?.nombre || '';
+    // Intentar cargar perfil de BD
+    const { data: perfil } = await client
+      .from('perfiles')
+      .select('*, empresas(nombre)')
+      .eq('id', user.id)
+      .single();
 
-    // Nav user info
+    currentUser = { ...user, perfil: perfil || { rol: 'operador', nombre: user.email?.split('@')[0], activo: true } };
 
     // --- User card navbar ---
-    const rolLabels = {
-      admin_global: { label: 'Administrador', icon: '⭐' },
-      admin_empresa: { label: 'Admin Empresa', icon: '🏢' },
-      operador: { label: 'Operador', icon: '👤' }
-    };
-    const rolInfo = rolLabels[perfil?.rol] || { label: perfil?.rol || 'Usuario', icon: '👤' };
-    const nombreCorto = (perfil?.nombre || currentUser.email || '?');
+    const rolLabels = { admin_global: { label: 'Administrador', icon: '⭐' }, admin_empresa: { label: 'Admin Empresa', icon: '🏢' }, operador: { label: 'Operador', icon: '👤' } };
+    const rolInfo = rolLabels[perfil?.rol] || { label: 'Usuario', icon: '👤' };
+    const nombreCorto = perfil?.nombre || user.email?.split('@')[0] || user.email;
     const inicial = nombreCorto.charAt(0).toUpperCase();
-    
-    const avatarEl = document.getElementById('nav-avatar');
-    if (avatarEl) avatarEl.textContent = inicial;
-    
-    const userNameEl = document.getElementById('nav-user-name');
-    if (userNameEl) userNameEl.textContent = nombreCorto;
-    
-    const rolBadgeEl = document.getElementById('nav-rol-badge');
-    if (rolBadgeEl) rolBadgeEl.textContent = rolInfo.icon;
-    
-    const empresaNombreEl = document.getElementById('nav-empresa-name');
-    if (empresaNombreEl) empresaNombreEl.textContent = rolInfo.label;
-    
-    // Mobile menu
+    document.getElementById('nav-avatar').textContent = inicial;
+    document.getElementById('nav-user-name').textContent = nombreCorto;
+    document.getElementById('nav-rol-badge').textContent = rolInfo.icon;
+    document.getElementById('nav-empresa-name').textContent = rolInfo.label;
     const mobileUserEl = document.getElementById('mobile-user-name');
     if (mobileUserEl) mobileUserEl.textContent = nombreCorto;
     // --- fin user card ---
 
-    // Greeting
-    const hora = new Date().getHours();
-    const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches';
-    document.getElementById('greeting-text').textContent = `${saludo}, ${nombre}`;
-
-    // Mostrar link Admin siempre (admin.html controla el acceso internamente)
+    // Mostrar link Admin para admins
     document.getElementById('admin-nav-link')?.classList.remove('hidden');
     document.getElementById('admin-nav-mobile')?.classList.remove('hidden');
-    
-    // Debug rol en consola
-    console.log('Usuario:', currentUser?.email, '| Rol:', perfil?.rol, '| Empresa:', perfil?.empresa_id);
 
     setActiveNavLink();
     initHamburger();

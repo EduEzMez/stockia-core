@@ -244,24 +244,30 @@
   async function init() {
     const session = await checkAuth();
     if (!session) return;
-    currentUser = await getCurrentUser();
-    if (!currentUser) { showToast("Error al cargar usuario. Intentá recargar.", "error"); return; }
 
-    const rol = currentUser.perfil?.rol;
+    // Obtener usuario directo de Auth (no depende de tabla perfiles)
+    const client = getClient();
+    const { data: { user } } = await client.auth.getUser();
+    if (!user) { logout(); return; }
+
+    // Obtener perfil de BD
+    const { data: perfil } = await client
+      .from('perfiles')
+      .select('*, empresas(nombre)')
+      .eq('id', user.id)
+      .single();
+
+    currentUser = { ...user, perfil: perfil || { rol: 'operador', nombre: user.email?.split('@')[0] } };
+
     // --- User card navbar ---
     const rolLabels = { admin_global: { label: 'Administrador', icon: '⭐' }, admin_empresa: { label: 'Admin Empresa', icon: '🏢' }, operador: { label: 'Operador', icon: '👤' } };
-    const perfil = currentUser.perfil;
     const rolInfo = rolLabels[perfil?.rol] || { label: perfil?.rol || 'Usuario', icon: '👤' };
-    const nombreCorto = perfil?.nombre || currentUser.email || '?';
+    const nombreCorto = perfil?.nombre || user.email?.split('@')[0] || user.email;
     const inicial = nombreCorto.charAt(0).toUpperCase();
-    const avatarEl = document.getElementById('nav-avatar');
-    if (avatarEl) avatarEl.textContent = inicial;
-    const userNameEl = document.getElementById('nav-user-name');
-    if (userNameEl) userNameEl.textContent = nombreCorto;
-    const rolBadgeEl = document.getElementById('nav-rol-badge');
-    if (rolBadgeEl) rolBadgeEl.textContent = rolInfo.icon;
-    const empresaNombreEl = document.getElementById('nav-empresa-name');
-    if (empresaNombreEl) empresaNombreEl.textContent = rolInfo.label;
+    document.getElementById('nav-avatar').textContent = inicial;
+    document.getElementById('nav-user-name').textContent = nombreCorto;
+    document.getElementById('nav-rol-badge').textContent = rolInfo.icon;
+    document.getElementById('nav-empresa-name').textContent = rolInfo.label;
     const mobileUserEl = document.getElementById('mobile-user-name');
     if (mobileUserEl) mobileUserEl.textContent = nombreCorto;
     // --- fin user card ---
@@ -270,14 +276,18 @@
     initHamburger();
     setFooterYear();
 
-    // Check access
+    const rol = perfil?.rol;
+    console.log('Admin panel - email:', user.email, '| rol:', rol);
+
+    // Si no tiene permiso mostrar mensaje
     if (!['admin_global', 'admin_empresa'].includes(rol)) {
       document.getElementById('access-denied').classList.remove('hidden');
+      document.getElementById('access-denied').innerHTML = 
+        '🔒 Tu rol actual es <strong>' + (rol || 'desconocido') + '</strong>. Necesitás ser admin_global o admin_empresa. Ejecutá el SQL de fix en Supabase.';
       return;
     }
 
     document.getElementById('admin-content').classList.remove('hidden');
-
     await loadEmpresas();
     await loadUsuarios();
   }
