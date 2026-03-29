@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="utils.js"></script>
   <link rel="stylesheet" href="styles.css">
   <style>
     .ficha-item {
@@ -261,9 +262,8 @@
   </div>
 </div>
 
-<script src="utils.js"></script>
 <script>
-  const sb = initSupabase();
+  initSupabase(); // supabase global ready
   let currentUser = null;
   let allClientes = [];
   let allProductos = [];
@@ -299,7 +299,7 @@
   }
 
   async function loadClientes() {
-    let q = sb.from('clientes').select('id, nombre').eq('activo', true).order('nombre');
+    let q = supabase.from('clientes').select('id, nombre').eq('activo', true).order('nombre');
     if (currentUser.perfil?.empresa_id) q = q.eq('empresa_id', currentUser.perfil.empresa_id);
     const { data } = await q;
     allClientes = data || [];
@@ -309,7 +309,7 @@
   }
 
   async function loadProductos() {
-    let q = sb.from('productos').select('id, nombre, precio_contado, porcentaje_cuotas, stock').eq('activo', true).order('nombre');
+    let q = supabase.from('productos').select('id, nombre, precio_contado, porcentaje_cuotas, stock').eq('activo', true).order('nombre');
     if (currentUser.perfil?.empresa_id) q = q.eq('empresa_id', currentUser.perfil.empresa_id);
     const { data } = await q;
     allProductos = data || [];
@@ -499,7 +499,7 @@
       const empresaId = currentUser.perfil?.empresa_id;
 
       // 1. Crear venta cabecera
-      const { data: venta, error: ventaErr } = await sb.from('ventas')
+      const { data: venta, error: ventaErr } = await supabase.from('ventas')
         .insert({ cliente_id: clienteId, empresa_id: empresaId, vendedor, fecha_venta: fechaVenta })
         .select().single();
       if (ventaErr) throw ventaErr;
@@ -510,7 +510,7 @@
         itemPayload.venta_id = venta.id;
         itemPayload.empresa_id = empresaId;
 
-        const { data: item, error: itemErr } = await sb.from('venta_items').insert(itemPayload).select().single();
+        const { data: item, error: itemErr } = await supabase.from('venta_items').insert(itemPayload).select().single();
         if (itemErr) throw itemErr;
 
         // 3. Crear cuotas (pagos programados)
@@ -527,10 +527,10 @@
               estado: 'pendiente'
             });
           }
-          await sb.from('pagos').insert(cuotas);
+          await supabase.from('pagos').insert(cuotas);
         } else {
           // Contado: una sola cuota con fecha hoy
-          await sb.from('pagos').insert({
+          await supabase.from('pagos').insert({
             empresa_id: empresaId,
             venta_item_id: item.id,
             numero_cuota: 1,
@@ -544,8 +544,8 @@
         const prod = allProductos.find(p => p.id === f.producto_id);
         if (prod) {
           const nuevoStock = Math.max(0, prod.stock - _stock_reducir);
-          await sb.from('productos').update({ stock: nuevoStock }).eq('id', f.producto_id);
-          await sb.from('movimientos_stock').insert({
+          await supabase.from('productos').update({ stock: nuevoStock }).eq('id', f.producto_id);
+          await supabase.from('movimientos_stock').insert({
             empresa_id: empresaId,
             producto_id: f.producto_id,
             tipo: 'salida',
@@ -589,7 +589,7 @@
     const search = document.getElementById('search-ventas').value.toLowerCase().trim();
     const estado = document.getElementById('filter-estado-venta').value;
 
-    let q = sb.from('ventas')
+    let q = supabase.from('ventas')
       .select('*, clientes(nombre, telefono), venta_items(id, deuda_restante, productos(nombre))')
       .order('created_at', { ascending: false })
       .limit(50);
@@ -649,11 +649,11 @@
     openModal('modal-venta-detalle');
     document.getElementById('detalle-content').innerHTML = 'Cargando...';
 
-    const { data: venta } = await sb.from('ventas')
+    const { data: venta } = await supabase.from('ventas')
       .select('*, clientes(*)')
       .eq('id', ventaId).single();
 
-    const { data: items } = await sb.from('venta_items')
+    const { data: items } = await supabase.from('venta_items')
       .select('*, productos(nombre), pagos(*)')
       .eq('venta_id', ventaId);
 
@@ -693,7 +693,7 @@
     const clienteId = document.getElementById('pago-cliente-select').value;
     if (!clienteId) return;
 
-    const { data: ventas } = await sb.from('ventas').select('id').eq('cliente_id', clienteId);
+    const { data: ventas } = await supabase.from('ventas').select('id').eq('cliente_id', clienteId);
     const ventaIds = (ventas || []).map(v => v.id);
 
     if (!ventaIds.length) {
@@ -701,7 +701,7 @@
       return;
     }
 
-    const { data: items } = await sb.from('venta_items')
+    const { data: items } = await supabase.from('venta_items')
       .select('*, productos(nombre), pagos(*)')
       .in('venta_id', ventaIds)
       .eq('estado', 'pendiente');
@@ -782,18 +782,18 @@
 
     try {
       // Obtener cuota
-      const { data: cuota } = await sb.from('pagos').select('*').eq('id', cuotaId).single();
+      const { data: cuota } = await supabase.from('pagos').select('*').eq('id', cuotaId).single();
       if (!cuota) throw new Error('Cuota no encontrada');
 
       const today = new Date().toISOString().split('T')[0];
       const vencida = cuota.fecha_vencimiento < today;
-      const { data: item } = await sb.from('venta_items').select('*').eq('id', itemId).single();
+      const { data: item } = await supabase.from('venta_items').select('*').eq('id', itemId).single();
 
       const mora = vencida ? cuota.monto_original * (item.mora_porcentaje / 100) : 0;
       const adminGasto = vencida ? cuota.monto_original * (item.gasto_admin_porcentaje / 100) : 0;
 
       // Marcar cuota como pagada
-      await sb.from('pagos').update({
+      await supabase.from('pagos').update({
         fecha_pago: fechaPago,
         monto_pagado: monto,
         mora_aplicada: mora,
@@ -804,7 +804,7 @@
       // Actualizar deuda en item
       const nuevaDeuda = Math.max(0, (item.deuda_restante || 0) - cuota.monto_original);
       const estadoItem = nuevaDeuda <= 0 ? 'pagado' : 'pendiente';
-      await sb.from('venta_items').update({ deuda_restante: nuevaDeuda, estado: estadoItem }).eq('id', itemId);
+      await supabase.from('venta_items').update({ deuda_restante: nuevaDeuda, estado: estadoItem }).eq('id', itemId);
 
       closeModal('modal-pagar');
       showToast('¡Pago registrado! ✅', 'success');

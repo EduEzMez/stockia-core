@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="utils.js"></script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -140,9 +141,8 @@
   </div>
 </div>
 
-<script src="utils.js"></script>
 <script>
-  const sb = initSupabase();
+  initSupabase(); // supabase global ready
   let currentUser = null;
   let allClientes = [];
 
@@ -171,7 +171,7 @@
 
   async function loadClientes() {
     try {
-      let q = sb.from('clientes').select('*').eq('activo', true).order('nombre');
+      let q = supabase.from('clientes').select('*').eq('activo', true).order('nombre');
       if (currentUser.perfil?.empresa_id) q = q.eq('empresa_id', currentUser.perfil.empresa_id);
       const { data, error } = await q;
       if (error) throw error;
@@ -242,11 +242,11 @@
 
     try {
       if (id) {
-        const { error } = await sb.from('clientes').update(payload).eq('id', id);
+        const { error } = await supabase.from('clientes').update(payload).eq('id', id);
         if (error) throw error;
         showToast('Cliente actualizado ✅', 'success');
       } else {
-        const { error } = await sb.from('clientes').insert(payload);
+        const { error } = await supabase.from('clientes').insert(payload);
         if (error) throw error;
         showToast('Cliente creado ✅', 'success');
       }
@@ -268,7 +268,7 @@
   async function deleteCliente(id) {
     if (!confirmDialog('¿Dar de baja a este cliente? Sus ventas no se eliminarán.')) return;
     try {
-      await sb.from('clientes').update({ activo: false }).eq('id', id);
+      await supabase.from('clientes').update({ activo: false }).eq('id', id);
       showToast('Cliente dado de baja', 'success');
       await loadClientes();
     } catch(e) {
@@ -282,13 +282,13 @@
     openModal('modal-deudas');
 
     try {
-      const { data: items } = await sb.from('venta_items')
+      const { data: items } = await supabase.from('venta_items')
         .select('*, productos(nombre), ventas(fecha_venta)')
         .eq('estado', 'pendiente')
         .not('deuda_restante', 'eq', 0);
 
       // Filtrar por cliente a través de ventas
-      const { data: ventas } = await sb.from('ventas')
+      const { data: ventas } = await supabase.from('ventas')
         .select('id')
         .eq('cliente_id', clienteId);
 

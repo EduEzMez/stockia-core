@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="utils.js"></script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -193,9 +194,8 @@
   </div>
 </div>
 
-<script src="utils.js"></script>
 <script>
-  const sb = initSupabase();
+  initSupabase(); // supabase global ready
   let currentUser = null;
   let allProductos = [];
 
@@ -227,7 +227,7 @@
 
   async function loadProductos() {
     try {
-      let q = sb.from('productos').select('*').eq('activo', true).order('nombre');
+      let q = supabase.from('productos').select('*').eq('activo', true).order('nombre');
       if (currentUser.perfil?.empresa_id) q = q.eq('empresa_id', currentUser.perfil.empresa_id);
       const { data, error } = await q;
       if (error) throw error;
@@ -315,11 +315,11 @@
 
     try {
       if (id) {
-        const { error } = await sb.from('productos').update(payload).eq('id', id);
+        const { error } = await supabase.from('productos').update(payload).eq('id', id);
         if (error) throw error;
         showToast('Producto actualizado ✅', 'success');
       } else {
-        const { error } = await sb.from('productos').insert(payload);
+        const { error } = await supabase.from('productos').insert(payload);
         if (error) throw error;
         showToast('Producto creado ✅', 'success');
       }
@@ -341,7 +341,7 @@
   async function deleteProducto(id) {
     if (!confirmDialog('¿Estás seguro/a de dar de baja este producto? Esta acción no se puede deshacer.')) return;
     try {
-      const { error } = await sb.from('productos').update({ activo: false }).eq('id', id);
+      const { error } = await supabase.from('productos').update({ activo: false }).eq('id', id);
       if (error) throw error;
       showToast('Producto dado de baja', 'success');
       await loadProductos();
@@ -375,11 +375,11 @@
       else if (tipo === 'ajuste') nuevoStock = cantidad;
 
       // Actualizar stock
-      const { error: stockErr } = await sb.from('productos').update({ stock: nuevoStock }).eq('id', prodId);
+      const { error: stockErr } = await supabase.from('productos').update({ stock: nuevoStock }).eq('id', prodId);
       if (stockErr) throw stockErr;
 
       // Registrar movimiento
-      await sb.from('movimientos_stock').insert({
+      await supabase.from('movimientos_stock').insert({
         producto_id: prodId,
         empresa_id: currentUser.perfil?.empresa_id,
         tipo,
@@ -402,7 +402,7 @@
     openModal('modal-log');
 
     try {
-      const { data } = await sb.from('movimientos_stock')
+      const { data } = await supabase.from('movimientos_stock')
         .select('*')
         .eq('producto_id', id)
         .order('created_at', { ascending: false })

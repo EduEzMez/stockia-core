@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="utils.js"></script>
   <link rel="stylesheet" href="styles.css">
   <style>
     .tabs { display:flex; border-bottom:2px solid var(--border); margin-bottom:20px; overflow-x:auto; }
@@ -209,9 +210,8 @@
   </div>
 </div>
 
-<script src="utils.js"></script>
 <script>
-  const sb = initSupabase();
+  initSupabase(); // supabase global ready
   let currentUser = null;
   let allEmpresas = [];
   let allUsuarios = [];
@@ -255,7 +255,7 @@
   // EMPRESAS
   // ==============================================================
   async function loadEmpresas() {
-    const { data } = await sb.from('empresas').select('*').order('nombre');
+    const { data } = await supabase.from('empresas').select('*').order('nombre');
     allEmpresas = data || [];
 
     const listEl = document.getElementById('empresas-list');
@@ -307,10 +307,10 @@
 
     try {
       if (id) {
-        await sb.from('empresas').update({ nombre, email_contacto: email }).eq('id', id);
+        await supabase.from('empresas').update({ nombre, email_contacto: email }).eq('id', id);
         showToast('Empresa actualizada ✅', 'success');
       } else {
-        await sb.from('empresas').insert({ nombre, email_contacto: email });
+        await supabase.from('empresas').insert({ nombre, email_contacto: email });
         showToast('Empresa creada ✅', 'success');
       }
       document.getElementById('emp-id').value = '';
@@ -325,7 +325,7 @@
   }
 
   async function toggleEmpresa(id, activa) {
-    await sb.from('empresas').update({ activa }).eq('id', id);
+    await supabase.from('empresas').update({ activa }).eq('id', id);
     showToast(activa ? 'Empresa activada' : 'Empresa desactivada', 'success');
     await loadEmpresas();
   }
@@ -334,7 +334,7 @@
   // USUARIOS
   // ==============================================================
   async function loadUsuarios() {
-    const { data } = await sb.from('perfiles')
+    const { data } = await supabase.from('perfiles')
       .select('*, empresas(nombre)')
       .order('created_at', { ascending: false });
     allUsuarios = data || [];
@@ -383,7 +383,7 @@
     if (!id) { showToast('Seleccioná un usuario para editar', 'error'); return; }
 
     try {
-      await sb.from('perfiles').update({ nombre, empresa_id: empresaId, rol, activo }).eq('id', id);
+      await supabase.from('perfiles').update({ nombre, empresa_id: empresaId, rol, activo }).eq('id', id);
       showToast('Usuario actualizado ✅', 'success');
       closeModal('modal-usuario');
       await loadUsuarios();
@@ -404,11 +404,11 @@
     try {
       const empresa = allEmpresas.find(e => e.id === empresaId);
       const [productos, clientes, ventas, ventaItems, pagos] = await Promise.all([
-        sb.from('productos').select('*').eq('empresa_id', empresaId),
-        sb.from('clientes').select('*').eq('empresa_id', empresaId),
-        sb.from('ventas').select('*').eq('empresa_id', empresaId),
-        sb.from('venta_items').select('*').eq('empresa_id', empresaId),
-        sb.from('pagos').select('*').eq('empresa_id', empresaId),
+        supabase.from('productos').select('*').eq('empresa_id', empresaId),
+        supabase.from('clientes').select('*').eq('empresa_id', empresaId),
+        supabase.from('ventas').select('*').eq('empresa_id', empresaId),
+        supabase.from('venta_items').select('*').eq('empresa_id', empresaId),
+        supabase.from('pagos').select('*').eq('empresa_id', empresaId),
       ]);
 
       const backup = {
@@ -468,7 +468,7 @@
       if (datos.productos?.length) {
         for (const p of datos.productos) {
           const { id: oldId, ...rest } = p;
-          const { data } = await sb.from('productos').insert({ ...rest, empresa_id: empresaId }).select('id').single();
+          const { data } = await supabase.from('productos').insert({ ...rest, empresa_id: empresaId }).select('id').single();
           if (data) prodMap[oldId] = data.id;
         }
       }
@@ -477,7 +477,7 @@
       if (datos.clientes?.length) {
         for (const c of datos.clientes) {
           const { id: oldId, ...rest } = c;
-          const { data } = await sb.from('clientes').insert({ ...rest, empresa_id: empresaId }).select('id').single();
+          const { data } = await supabase.from('clientes').insert({ ...rest, empresa_id: empresaId }).select('id').single();
           if (data) cliMap[oldId] = data.id;
         }
       }
@@ -487,7 +487,7 @@
         for (const v of datos.ventas) {
           const { id: oldId, ...rest } = v;
           const newClienteId = cliMap[rest.cliente_id] || rest.cliente_id;
-          const { data } = await sb.from('ventas').insert({ ...rest, empresa_id: empresaId, cliente_id: newClienteId }).select('id').single();
+          const { data } = await supabase.from('ventas').insert({ ...rest, empresa_id: empresaId, cliente_id: newClienteId }).select('id').single();
           if (data) ventaMap[oldId] = data.id;
         }
       }
@@ -498,7 +498,7 @@
           const { id: oldId, ...rest } = vi;
           const newVentaId = ventaMap[rest.venta_id] || rest.venta_id;
           const newProdId = prodMap[rest.producto_id] || rest.producto_id;
-          const { data } = await sb.from('venta_items').insert({ ...rest, empresa_id: empresaId, venta_id: newVentaId, producto_id: newProdId }).select('id').single();
+          const { data } = await supabase.from('venta_items').insert({ ...rest, empresa_id: empresaId, venta_id: newVentaId, producto_id: newProdId }).select('id').single();
           if (data) itemMap[oldId] = data.id;
         }
       }
@@ -508,7 +508,7 @@
         for (const pg of datos.pagos) {
           const { id: oldId, ...rest } = pg;
           const newItemId = itemMap[rest.venta_item_id] || rest.venta_item_id;
-          await sb.from('pagos').insert({ ...rest, empresa_id: empresaId, venta_item_id: newItemId });
+          await supabase.from('pagos').insert({ ...rest, empresa_id: empresaId, venta_item_id: newItemId });
         }
       }
 
